@@ -1,0 +1,695 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link href="common/css/sf.css" rel="stylesheet" type="text/css"/>
+<title>Verif_triang: A client of the stack functions</title>
+</head>
+<link href="common/jquery-ui/jquery-ui.css" rel="stylesheet">
+<script src="common/jquery-ui/external/jquery/jquery.js"></script>
+<script src="common/jquery-ui/jquery-ui.js"></script>
+<script src="common/toggleproofs.js"></script>
+<link href="common/css/vc.css" rel="stylesheet" type="text/css"/>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+<a href='https://www.cis.upenn.edu/~bcpierce/sf/current/index.html'>
+<img src='common/media/image/sf_logo_sm.png'></a>
+</br><a href='index.html'>  <span class='booktitleinheader'>Volume 5beta: Verifiable C</span><br></br>
+<ul id='menu'>
+   <a href='toc.html'><li class='section_name'>Table of Contents</li></a>
+   <a href='coqindex.html'><li class='section_name'>Index</li></a>
+</ul>
+</a></div>
+
+<div id="main">
+
+<h1 class="libtitle">Verif_triang<span class="subtitle">A client of the stack functions</span></h1>
+
+
+<div class="code code-tight">
+
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.proofauto</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.library</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VC.stack</span>.<br/>
+<span class="id" type="keyword">Instance</span> <span class="id" type="var">CompSpecs</span> : <span class="id" type="var">compspecs</span>. <span class="id" type="var">make_compspecs</span> <span class="id" type="var">prog</span>. <span class="id" type="keyword">Defined</span>.<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">Vprog</span> : <span class="id" type="var">varspecs</span>. <span class="id" type="var">mk_varspecs</span> <span class="id" type="var">prog</span>. <span class="id" type="keyword">Defined</span>.<br/>
+</div>
+
+<div class="doc">
+Here are some functions (in <span class="inlinecode"><span class="id" type="var">stack.c</span></span>) that are clients of
+  the stack ADT. 
+<pre>
+void push_increasing (struct stack *st, int n) {
+  int i;
+  i=0;
+  while (i&lt;n) {
+     i++;
+     push(st,i);
+  }
+}
+
+int pop_and_add (struct stack *st, int n) {
+  int i=0;
+  int t, s=0;
+  while (i&lt;n) {
+    t=pop(st);
+    s += t;
+    i++;
+  }
+  return s;
+}
+
+int main (void) {
+  struct stack *st;
+  int i,t,s;
+  st = newstack();
+  push_increasing(st, 10);
+  s = pop_and_add(st, 10);
+  return s;
+}
+</pre>
+
+<div class="paragraph"> </div>
+
+In this chapter we will see how to verify their correctness. 
+<div class="paragraph"> </div>
+
+<a name="lab50"></a><h2 class="section">Proofs with integers</h2>
+
+<div class="paragraph"> </div>
+
+ The natural numbers have arithmetic axioms that are not very nice.
+   For example, you might expect that <span class="inlinecode"><span class="id" type="var">a</span>-<span class="id" type="var">b</span>+<span class="id" type="var">b</span>=<span class="id" type="var">a</span></span>, but that's not true: 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">nat_sub_add_yuck</span>:<br/>
+&nbsp;&nbsp;¬(<span style='font-size:120%;'>&forall;</span><span class="id" type="var">a</span> <span class="id" type="var">b</span>: <span class="id" type="var">nat</span>, <span class="id" type="var">a</span>-<span class="id" type="var">b</span>+<span class="id" type="var">b</span>=<span class="id" type="var">a</span>)%<span class="id" type="var">nat</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+<span class="id" type="tactic">intro</span>.<br/>
+<span class="id" type="var">specialize</span> (<span class="id" type="var">H</span> 0 1)%<span class="id" type="var">nat</span>.<br/>
+<span class="id" type="tactic">simpl</span> <span class="id" type="keyword">in</span> <span class="id" type="var">H</span>. <span class="id" type="tactic">inversion</span> <span class="id" type="var">H</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+This just shows that if the negative numbers did not exist, it
+      would be necessary to construct them!  In reasoning about
+      programs, as in many other kinds of mathematics, we should use
+      the integers.  In Coq the type is called <span class="inlinecode"><span class="id" type="var">Z</span></span>. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">Z_sub_add_ok</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">a</span> <span class="id" type="var">b</span> : <span class="id" type="var">Z</span>, <span class="id" type="var">a</span>-<span class="id" type="var">b</span>+<span class="id" type="var">b</span>=<span class="id" type="var">a</span>.<br/>
+<span class="id" type="keyword">Proof</span>. <span class="id" type="tactic">intros</span>. <span class="id" type="tactic">omega</span>. <span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+The Z type does have an inductive definition . . . 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Print</span> <span class="id" type="var">Z</span>.<br/>
+<span class="comment">(*&nbsp;Inductive&nbsp;Z&nbsp;:&nbsp;Set&nbsp;:=&nbsp;Z<sub>0</sub>&nbsp;:&nbsp;Z&nbsp;|&nbsp;Zpos&nbsp;:&nbsp;positive&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;Z&nbsp;|&nbsp;Zneg&nbsp;:&nbsp;positive&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;Z&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+but we generally prefer to reason <i>abstractly</i> about Z, using the
+     lemmas in the Coq library (that the Coq developers proved from
+     the inductive definition).  In fact, the natural induction
+     principle on Z is not the one we usually want to use! 
+<div class="paragraph"> </div>
+
+ Let's consider a recursive function on Z, the function that turns
+   <span class="inlinecode">5</span> into the list <span class="inlinecode">5::4::3::2::1::<span class="id" type="var">nil</span></span>.  In the natural numbers,
+   that's easy to define: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">decreasing_nat</span> (<span class="id" type="var">n</span>: <span class="id" type="var">nat</span>) : <span class="id" type="var">list</span> <span class="id" type="var">nat</span> := <br/>
+&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">n</span> <span class="id" type="keyword">with</span> <span class="id" type="var">S</span> <span class="id" type="var">n'</span> ⇒ <span class="id" type="var">n</span> :: <span class="id" type="var">decreasing_nat</span> <span class="id" type="var">n'</span> | <span class="id" type="var">O</span> ⇒ <span class="id" type="var">nil</span> <span class="id" type="keyword">end</span>.<br/>
+</div>
+
+<div class="doc">
+But in the integers <span class="inlinecode"><span class="id" type="var">Z</span></span>, we cannot simply pattern-match on successor ... 
+</div>
+<div class="code code-tight">
+<span class="id" type="var">Fail</span> <span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">decreasing_Z</span> (<span class="id" type="var">n</span>: <span class="id" type="var">Z</span>) : <span class="id" type="var">list</span> <span class="id" type="var">Z</span> := <br/>
+&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">n</span> <span class="id" type="keyword">with</span> <span class="id" type="var">Z.succ</span> <span class="id" type="var">n'</span> ⇒ <span class="id" type="var">n</span> :: <span class="id" type="var">decreasing_Z</span> <span class="id" type="var">n'</span> | 0 ⇒ <span class="id" type="var">nil</span> <span class="id" type="keyword">end</span>.<br/>
+</div>
+
+<div class="doc">
+... because Z.succ is a function, not a constructor. 
+<div class="paragraph"> </div>
+
+ There are two ways we might define a function to produce a decreasing
+  list of Z.  First, we might use <span class="inlinecode"><span class="id" type="var">Z.of_nat</span></span> and <span class="inlinecode"><span class="id" type="var">Z.to_nat</span></span>: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">decreasing_Z1_aux</span> (<span class="id" type="var">n</span>: <span class="id" type="var">nat</span>) : <span class="id" type="var">list</span> <span class="id" type="var">Z</span> := <br/>
+&nbsp;&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">n</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" type="var">S</span> <span class="id" type="var">n'</span> ⇒ <span class="id" type="var">Z.of_nat</span> <span class="id" type="var">n</span> :: <span class="id" type="var">decreasing_Z1_aux</span> <span class="id" type="var">n'</span><br/>
+&nbsp;&nbsp;| <span class="id" type="var">O</span> ⇒ <span class="id" type="var">nil</span><br/>
+&nbsp;&nbsp;<span class="id" type="keyword">end</span>.<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">decreasing_Z<sub>1</sub></span> (<span class="id" type="var">n</span>: <span class="id" type="var">Z</span>) : <span class="id" type="var">list</span> <span class="id" type="var">Z</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">decreasing_Z1_aux</span> (<span class="id" type="var">Z.to_nat</span> <span class="id" type="var">n</span>).<br/>
+</div>
+
+<div class="doc">
+This will work, but in doing proofs the frequent conversion
+   between Z and nat will be awkward.  If possible, we'd like to stay
+   in the integers as much as possible.  So here's another way: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Check</span> <span class="id" type="var">Z_gt_dec</span>. <span class="comment">(*&nbsp;&nbsp;&nbsp;:&nbsp;forall&nbsp;x&nbsp;y&nbsp;:&nbsp;Z,&nbsp;{x&nbsp;&gt;&nbsp;y}&nbsp;+&nbsp;{~&nbsp;x&nbsp;&gt;&nbsp;y}&nbsp;*)</span><br/><hr class='doublespaceincode'/>
+<span class="id" type="var">Function</span> <span class="id" type="var">decreasing</span> (<span class="id" type="var">n</span>: <span class="id" type="var">Z</span>) {<span class="id" type="keyword">measure</span> <span class="id" type="var">Z.to_nat</span> <span class="id" type="var">n</span>}:= <br/>
+&nbsp;<span class="id" type="keyword">if</span> <span class="id" type="var">Z_gt_dec</span> <span class="id" type="var">n</span> 0 <span class="id" type="keyword">then</span> <span class="id" type="var">n</span> :: <span class="id" type="var">decreasing</span> (<span class="id" type="var">n</span>-1) <span class="id" type="keyword">else</span> <span class="id" type="var">nil</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+When you define a Function, you must provide a <span class="inlinecode"><span class="id" type="keyword">measure</span></span>, that is,
+    a function from your argument-type (in this case Z) to the natural
+    numbers, and then you must prove that each recursive call within
+    the function body decreases the measure.  In this ecase, there's
+    only one recursive call, so there's just one proof obligation:
+    show that if <span class="inlinecode"><span class="id" type="var">n</span>&gt;0</span> then  <span class="inlinecode"><span class="id" type="var">Z.to_nat</span></span> <span class="inlinecode">(<span class="id" type="var">n</span>-1)</span> <span class="inlinecode">&lt;</span> <span class="inlinecode"><span class="id" type="var">Z.to_nat</span></span> <span class="inlinecode"><span class="id" type="var">n</span></span>.  
+</div>
+<div class="code code-tight">
+<span class="id" type="tactic">intros</span>.<br/>
+<span class="id" type="tactic">apply</span> <span class="id" type="var">Z2Nat.inj_lt</span>; <span class="id" type="tactic">omega</span>.<br/>
+<span class="id" type="keyword">Defined</span>. <span class="comment">(*&nbsp;Terminate&nbsp;your&nbsp;<span class="inlinecode"><span class="id" type="var">Function</span></span>&nbsp;declarations&nbsp;with&nbsp;<span class="inlinecode"><span class="id" type="keyword">Defined</span></span>&nbsp;instead&nbsp;<br/>
+&nbsp;of&nbsp;<span class="inlinecode"><span class="id" type="keyword">Qed</span></span>,&nbsp;so&nbsp;that&nbsp;Coq&nbsp;will&nbsp;be&nbsp;able&nbsp;to&nbsp;use&nbsp;your&nbsp;function&nbsp;in&nbsp;computations.&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+<a name="lab51"></a><h4 class="section">Exercise: 2 stars, standard (Zinduction)</h4>
+ Coq's standard induction principle for Z is not the one we usually
+   want, so let us define a more natural induction scheme: 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">Zinduction</span>: <span style='font-size:120%;'>&forall;</span> (<span class="id" type="var">P</span>: <span class="id" type="var">Z</span> → <span class="id" type="keyword">Prop</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">P</span> 0 →<br/>
+&nbsp;&nbsp;(<span style='font-size:120%;'>&forall;</span><span class="id" type="var">i</span>, 0 &lt; <span class="id" type="var">i</span> → <span class="id" type="var">P</span> (<span class="id" type="var">i</span>-1) → <span class="id" type="var">P</span> <span class="id" type="var">i</span>) →<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">n</span>, 0 ≤ <span class="id" type="var">n</span> → <span class="id" type="var">P</span> <span class="id" type="var">n</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+<span class="id" type="tactic">rewrite</span> &lt;- (<span class="id" type="var">Z2Nat.id</span> <span class="id" type="var">n</span>) <span class="id" type="keyword">in</span> * <span class="id" type="tactic">by</span> <span class="id" type="tactic">omega</span>.<br/>
+<span class="id" type="var">remember</span> (<span class="id" type="var">Z.to_nat</span> <span class="id" type="var">n</span>) <span class="id" type="keyword">as</span> <span class="id" type="var">j</span>. <span class="id" type="tactic">clear</span> <span class="id" type="var">Heqj</span>.<br/>
+<span class="id" type="keyword">Check</span> <span class="id" type="var">inj_S</span>. <span class="comment">(*&nbsp;Hint!&nbsp;&nbsp;this&nbsp;may&nbsp;be&nbsp;useful&nbsp;*)</span><br/>
+<span class="id" type="keyword">Print</span> <span class="id" type="var">Z.succ</span>. <span class="comment">(*&nbsp;Hint!&nbsp;&nbsp;<span class="inlinecode"><span class="id" type="var">Z.succ</span>(<span class="id" type="var">x</span>)</span>&nbsp;unfolds&nbsp;to&nbsp;<span class="inlinecode"><span class="id" type="var">x</span>+1</span>&nbsp;*)</span><br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab52"></a><h3 class="section">A theorem about the nth triangular number</h3>
+
+</div>
+<div class="code code-space">
+
+<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">add_list</span>: <span class="id" type="var">list</span> <span class="id" type="var">Z</span> → <span class="id" type="var">Z</span> := <span class="id" type="var">fold_right</span> <span class="id" type="var">Z.add</span> 0.<br/>
+</div>
+
+<div class="doc">
+<a name="lab53"></a><h4 class="section">Exercise: 2 stars, standard (add_list_decreasing)</h4>
+
+<div class="paragraph"> </div>
+
+ Theorem:  the sum of the list  <span class="inlinecode">(<span class="id" type="var">n</span>)::(<span class="id" type="var">n</span>-1)::</span> <span class="inlinecode">...</span> <span class="inlinecode">::</span> <span class="inlinecode">2::1</span> is <span class="inlinecode"><span class="id" type="var">n</span>*(<span class="id" type="var">n</span>+1)/2</span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">add_list_decreasing_eq_alt</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">n</span>,<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">n</span> →<br/>
+&nbsp;&nbsp;(2 * (<span class="id" type="var">add_list</span> (<span class="id" type="var">decreasing</span> <span class="id" type="var">n</span>)))%<span class="id" type="var">Z</span> = (<span class="id" type="var">n</span> * (<span class="id" type="var">n</span>+1))%<span class="id" type="var">Z</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">pattern</span> <span class="id" type="var">n</span>; <span class="id" type="tactic">apply</span> <span class="id" type="var">Zinduction</span>.<br/>
+&nbsp;&nbsp;- <span class="id" type="tactic">reflexivity</span>.<br/>
+&nbsp;&nbsp;- <span class="id" type="tactic">intros</span>.<br/>
+</div>
+
+<div class="doc">
+WARNING!  When using functions defined by <span class="inlinecode"><span class="id" type="var">Function</span></span>, don't unfold them!
+   Temporarily remove the <span class="comment">(*&nbsp;comment&nbsp;*)</span> brackets from the next line to see what happens! 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;&nbsp;unfold&nbsp;decreasing.&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+Instead of unfolding <span class="inlinecode"><span class="id" type="var">decreasing</span></span> we use the equation that Coq automagically defines
+   for the Function.  Go back up and reprocess the <span class="inlinecode"><span class="id" type="keyword">Defined</span>.</span> line that terminated
+   <span class="inlinecode"><span class="id" type="var">Function</span></span> <span class="inlinecode"><span class="id" type="var">decreasing</span></span>, and notice what happens in Coq's error-message window:
+   it says that lots of additional reasoning principles are defined for the new <span class="inlinecode"><span class="id" type="var">Function</span></span>.
+   (For some reason, Coq 8.8 does not mention <span class="inlinecode"><span class="id" type="var">decreasing_equation</span></span>, but it is
+    defined at the same time as the others.)  
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Check</span> <span class="id" type="var">decreasing_equation</span>.<br/><hr class='doublespaceincode'/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">decreasing_equation</span>.<br/>
+</div>
+
+<div class="doc">
+during the proof of this lemma, you may
+find the <span class="inlinecode"><span class="id" type="var">ring_simplify</span></span> tactic useful.  Read
+about it in the Coq reference manual.  Basically,
+it takes formulas with multiplication and addition,
+and simplifies them.  But you can do this without
+<span class="inlinecode"><span class="id" type="var">ring_simplify</span></span>, using just ordinary rewriting
+with lemmas about Z.add and Z.mul.  
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">add_list_decreasing_eq</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">n</span>,<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">n</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">add_list</span> (<span class="id" type="var">decreasing</span> <span class="id" type="var">n</span>) = <span class="id" type="var">n</span> * (<span class="id" type="var">n</span>+1) / 2.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">Z.div_unique_exact</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab54"></a><h3 class="section">Definitions copied from Verif_stack.v</h3>
+ We repeat here some material from Verif_stack.v.  Normally we
+   would break the .c file into separate modules, and do our
+   Verifiable C proofs in separate modules; but for this example we
+   leave out the modules. Just skip down to "End of the material
+   repeated from Verif_stack.v". 
+<div class="paragraph"> </div>
+
+  Specification of linked lists in separation logic 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">listrep</span> (<span class="id" type="var">il</span>: <span class="id" type="var">list</span> <span class="id" type="var">Z</span>) (<span class="id" type="var">p</span>: <span class="id" type="var">val</span>) : <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">il</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;| <span class="id" type="var">i</span>::<span class="id" type="var">il'</span> ⇒ <span class="id" type="var">EX</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>, <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_cons</span> <span class="id" type="var">noattr</span>) <span class="id" type="var">p</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_cons</span> <span class="id" type="var">noattr</span>) (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">i</span>),<span class="id" type="var">y</span>) <span class="id" type="var">p</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">il'</span> <span class="id" type="var">y</span><br/>
+&nbsp;| <span class="id" type="var">nil</span> ⇒ !! (<span class="id" type="var">p</span> = <span class="id" type="var">nullval</span>) &amp;&amp; <span class="id" type="var">emp</span><br/>
+&nbsp;<span class="id" type="keyword">end</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_local_prop</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">il</span> <span class="id" type="var">p</span>, <span class="id" type="var">listrep</span> <span class="id" type="var">il</span> <span class="id" type="var">p</span> &#x22A2;-<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!! (<span class="id" type="var">is_pointer_or_null</span> <span class="id" type="var">p</span>  ∧ (<span class="id" type="var">p</span>=<span class="id" type="var">nullval</span> ↔ <span class="id" type="var">il</span>=<span class="id" type="var">nil</span>)).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">induction</span> <span class="id" type="var">il</span>; <span class="id" type="tactic">intro</span>; <span class="id" type="tactic">simpl</span>.<br/>
+<span class="id" type="var">entailer</span>!. <span class="id" type="tactic">intuition</span>.<br/>
+<span class="id" type="var">Intros</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="var">entailer</span>!.<br/>
+<span class="id" type="tactic">split</span>; <span class="id" type="tactic">intros</span>. <span class="id" type="tactic">subst</span>.<br/>
+<span class="id" type="tactic">eapply</span> <span class="id" type="var">field_compatible_nullval</span>; <span class="id" type="tactic">eauto</span>.<br/>
+<span class="id" type="tactic">inversion</span> <span class="id" type="var">H<sub>3</sub></span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">listrep_local_prop</span> : <span class="id" type="var">saturate_local</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_valid_pointer</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">il</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">il</span> <span class="id" type="var">p</span> &#x22A2;- <span class="id" type="var">valid_pointer</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">listrep_valid_pointer</span> : <span class="id" type="var">valid_pointer</span>.<br/>
+</div>
+
+<div class="doc">
+Specification of stack data structure 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">stack</span> (<span class="id" type="var">il</span>: <span class="id" type="var">list</span> <span class="id" type="var">Z</span>) (<span class="id" type="var">p</span>: <span class="id" type="var">val</span>) :=<br/>
+&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">q</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_stack</span> <span class="id" type="var">noattr</span>) <span class="id" type="var">p</span> * <br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_stack</span> <span class="id" type="var">noattr</span>) <span class="id" type="var">q</span> <span class="id" type="var">p</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">il</span> <span class="id" type="var">q</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">stack_local_prop</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">il</span> <span class="id" type="var">p</span>, <span class="id" type="var">stack</span> <span class="id" type="var">il</span> <span class="id" type="var">p</span> &#x22A2;-  !! (<span class="id" type="var">isptr</span> <span class="id" type="var">p</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">stack_local_prop</span> : <span class="id" type="var">saturate_local</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">stack_valid_pointer</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">il</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">stack</span> <span class="id" type="var">il</span> <span class="id" type="var">p</span> &#x22A2;- <span class="id" type="var">valid_pointer</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">stack_valid_pointer</span> : <span class="id" type="var">valid_pointer</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">newstack_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_newstack</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> () <span class="id" type="var">LOCAL</span> (<span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>) <span class="id" type="var">SEP</span> (<span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tptr</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_stack</span> <span class="id" type="var">noattr</span>) ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">p</span>: <span class="id" type="var">val</span>, <span class="id" type="var">PROP</span> ( ) <span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> <span class="id" type="var">p</span>) <span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> <span class="id" type="var">nil</span> <span class="id" type="var">p</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">push_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_push</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">p</span>: <span class="id" type="var">val</span>, <span class="id" type="var">i</span>: <span class="id" type="var">Z</span>, <span class="id" type="var">il</span>: <span class="id" type="var">list</span> <span class="id" type="var">Z</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_p</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_stack</span> <span class="id" type="var">noattr</span>), <span class="id" type="var">_i</span> <span class="id" type="var">OF</span> <span class="id" type="var">tint</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">Int.min_signed</span> ≤ <span class="id" type="var">i</span> ≤ <span class="id" type="var">Int.max_signed</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_p</span> <span class="id" type="var">p</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_i</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">i</span>)); <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> <span class="id" type="var">il</span> <span class="id" type="var">p</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tvoid</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( ) <span class="id" type="var">LOCAL</span> () <span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> (<span class="id" type="var">i</span>::<span class="id" type="var">il</span>) <span class="id" type="var">p</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">pop_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_pop</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">p</span>: <span class="id" type="var">val</span>, <span class="id" type="var">i</span>: <span class="id" type="var">Z</span>, <span class="id" type="var">il</span>: <span class="id" type="var">list</span> <span class="id" type="var">Z</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_p</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_stack</span> <span class="id" type="var">noattr</span>) ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> () <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_p</span> <span class="id" type="var">p</span>; <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> (<span class="id" type="var">i</span>::<span class="id" type="var">il</span>) <span class="id" type="var">p</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tint</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( ) <span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">i</span>))) <span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> <span class="id" type="var">il</span> <span class="id" type="var">p</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/>
+</div>
+
+<div class="doc">
+(End of the material repeated from Verif_stack.v) 
+<div class="paragraph"> </div>
+
+<a name="lab55"></a><h2 class="section">Specification of the stack-client functions</h2>
+
+<div class="paragraph"> </div>
+
+ Spend a few minutes studying these funspecs, and compare
+ to the implementations in stack.c, until you understand why
+ these might be appropriate specifications.  
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">push_increasing_spec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_push_increasing</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">st</span>: <span class="id" type="var">val</span>, <span class="id" type="var">n</span>: <span class="id" type="var">Z</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_st</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_stack</span> <span class="id" type="var">noattr</span>), <span class="id" type="var">_n</span> <span class="id" type="var">OF</span> <span class="id" type="var">tint</span> ]<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (0 ≤ <span class="id" type="var">n</span> ≤ <span class="id" type="var">Int.max_signed</span>)<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_st</span> <span class="id" type="var">st</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_n</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">n</span>)); <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> <span class="id" type="var">nil</span> <span class="id" type="var">st</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tvoid</span> ]<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>() <span class="id" type="var">LOCAL</span>() <span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> (<span class="id" type="var">decreasing</span> <span class="id" type="var">n</span>) <span class="id" type="var">st</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">pop_and_add_spec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_pop_and_add</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">st</span>: <span class="id" type="var">val</span>, <span class="id" type="var">il</span>: <span class="id" type="var">list</span> <span class="id" type="var">Z</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_st</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_stack</span> <span class="id" type="var">noattr</span>), <span class="id" type="var">_n</span> <span class="id" type="var">OF</span> <span class="id" type="var">tint</span> ]<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">il</span> ≤ <span class="id" type="var">Int.max_signed</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">Forall</span> (<span class="id" type="var">Z.le</span> 0) <span class="id" type="var">il</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">add_list</span> <span class="id" type="var">il</span> ≤ <span class="id" type="var">Int.max_signed</span>)<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_st</span> <span class="id" type="var">st</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_n</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">il</span>)));<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> <span class="id" type="var">il</span> <span class="id" type="var">st</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tint</span> ]<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>() <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">add_list</span> <span class="id" type="var">il</span>))))<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> <span class="id" type="var">nil</span> <span class="id" type="var">st</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">main_spec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_main</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ ] <span class="id" type="var">main_pre</span> <span class="id" type="var">prog</span> <span class="id" type="var">nil</span> <span class="id" type="var">gv</span><br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tint</span> ] <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>( ) <span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> 55))) <span class="id" type="var">SEP</span>( <span class="id" type="var">TT</span> ).<br/>
+</div>
+
+<div class="doc">
+Putting all the funspecs together 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">Gprog</span> : <span class="id" type="var">funspecs</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">ltac</span>:(<span class="id" type="var">with_library</span> <span class="id" type="var">prog</span> [<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">newstack_spec</span>; <span class="id" type="var">push_spec</span>; <span class="id" type="var">pop_spec</span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">push_increasing_spec</span>; <span class="id" type="var">pop_and_add_spec</span>; <span class="id" type="var">main_spec</span><br/>
+&nbsp;]).<br/>
+</div>
+
+<div class="doc">
+<a name="lab56"></a><h2 class="section">Proofs of the stack-client function-bodies</h2>
+
+<div class="paragraph"> </div>
+
+<a name="lab57"></a><h4 class="section">Exercise: 3 stars, standard (body_push_increasing)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_push_increasing</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_push_increasing</span> <span class="id" type="var">push_increasing_spec</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab58"></a><h4 class="section">Exercise: 2 stars, standard (add_list_lemmas)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">add_list_app</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">al</span> <span class="id" type="var">bl</span>, <span class="id" type="var">add_list</span> (<span class="id" type="var">al</span>++<span class="id" type="var">bl</span>) = <span class="id" type="var">add_list</span> <span class="id" type="var">al</span> + <span class="id" type="var">add_list</span> <span class="id" type="var">bl</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">add_list_nonneg</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">il</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">Forall</span> (<span class="id" type="var">Z.le</span> 0) <span class="id" type="var">il</span> →<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">add_list</span> <span class="id" type="var">il</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab59"></a><h4 class="section">Exercise: 2 stars, standard (add_list_sublist_bounds)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">add_list_sublist_bounds</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">lo</span> <span class="id" type="var">hi</span> <span class="id" type="var">K</span> <span class="id" type="var">il</span>,<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">lo</span> ≤ <span class="id" type="var">hi</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">hi</span> ≤ <span class="id" type="var">Zlength</span> <span class="id" type="var">il</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">Forall</span> (<span class="id" type="var">Z.le</span> 0) <span class="id" type="var">il</span> →<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">add_list</span> <span class="id" type="var">il</span> ≤ <span class="id" type="var">K</span> →<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">add_list</span> (<span class="id" type="var">sublist</span> <span class="id" type="var">lo</span> <span class="id" type="var">hi</span> <span class="id" type="var">il</span>) ≤ <span class="id" type="var">K</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+Hint: you don't need induction.  Useful lemmas are,
+  <span class="inlinecode"><span class="id" type="var">sublist_same</span>,</span> <span class="inlinecode"><span class="id" type="var">sublist_split</span>,</span> <span class="inlinecode"><span class="id" type="var">add_list_nonneg</span>,</span> <span class="inlinecode"><span class="id" type="var">add_list_app</span>,</span> <span class="inlinecode"><span class="id" type="var">Forall_sublist</span></span>
+  and use the <span class="inlinecode"><span class="id" type="var">hint</span></span> tactic to learn when the <span class="inlinecode"><span class="id" type="var">list_solve</span></span> tactic will be useful. 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab60"></a><h4 class="section">Exercise: 3 stars, standard (add_another)</h4>
+ Suppose we have a list <span class="inlinecode"><span class="id" type="var">il</span></span> of integers, <span class="inlinecode"><span class="id" type="var">il</span></span> <span class="inlinecode">=</span> <span class="inlinecode">[5;4;3;2;1]</span>,
+   with <span class="inlinecode"><span class="id" type="var">Znth</span></span> <span class="inlinecode">0</span> <span class="inlinecode"><span class="id" type="var">il</span></span> <span class="inlinecode">=</span> <span class="inlinecode">5</span>, <span class="inlinecode"><span class="id" type="var">Znth</span></span> <span class="inlinecode">4</span> <span class="inlinecode"><span class="id" type="var">il</span></span> <span class="inlinecode">=</span> <span class="inlinecode">1</span>, and <span class="inlinecode"><span class="id" type="var">Zlength</span></span> <span class="inlinecode"><span class="id" type="var">il</span></span> <span class="inlinecode">=</span> <span class="inlinecode">5</span>,
+   and we want to add them all up,  5+4+3+2+1=15.
+  Suppose we've already added up the first <span class="inlinecode"><span class="id" type="var">i</span></span> of them  (let <span class="inlinecode"><span class="id" type="var">i</span>=2</span> for example),
+  that is, 5+4=9, and we want to add the next one, that is, the <span class="inlinecode"><span class="id" type="var">ith</span></span> one.
+  That is, we want to add <span class="inlinecode">9+3</span>.  How do we know that won't overflow
+  the range of C-language signed integer arithmetic?  
+    The proof goes:  Every element of the list is nonnegative; the whole
+   list adds up to a number &lt;= Int.max_signed; and any sublist of an
+   all-nonnegative list adds up to less-or-equal to the total of the whole list.
+
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">add_another</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">il</span>, <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">Forall</span> (<span class="id" type="var">Z.le</span> 0) <span class="id" type="var">il</span> →<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">add_list</span> <span class="id" type="var">il</span> ≤ <span class="id" type="var">Int.max_signed</span> →<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">i</span> : <span class="id" type="var">Z</span>,<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">i</span> &lt; <span class="id" type="var">Zlength</span> <span class="id" type="var">il</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">Int.min_signed</span> ≤ <span class="id" type="var">Int.signed</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">add_list</span> (<span class="id" type="var">sublist</span> 0 <span class="id" type="var">i</span> <span class="id" type="var">il</span>))) +<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">Int.signed</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">il</span>)) ≤ <span class="id" type="var">Int.max_signed</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+<span class="id" type="tactic">assert</span> (0 ≤ <span class="id" type="var">add_list</span> <span class="id" type="var">il</span>). {<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+}<br/>
+&nbsp;<span class="id" type="tactic">assert</span> (0 ≤ <span class="id" type="var">add_list</span> (<span class="id" type="var">sublist</span> 0 <span class="id" type="var">i</span> <span class="id" type="var">il</span>) ≤ <span class="id" type="var">Int.max_signed</span>). {<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;}<br/>
+&nbsp;<span class="id" type="tactic">assert</span> (<span class="id" type="var">H<sub>4</sub></span>: 0 ≤ <span class="id" type="var">add_list</span> (<span class="id" type="var">sublist</span> 0 (<span class="id" type="var">i</span>+1) <span class="id" type="var">il</span>) ≤ <span class="id" type="var">Int.max_signed</span>). {<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;}<br/>
+&nbsp;<span class="id" type="tactic">assert</span> (0 ≤ <span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">il</span> ≤ <span class="id" type="var">Int.max_signed</span>). {<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">replace</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">il</span>) <span class="id" type="keyword">with</span> (<span class="id" type="var">add_list</span> (<span class="id" type="var">sublist</span> <span class="id" type="var">i</span> (<span class="id" type="var">i</span>+1) <span class="id" type="var">il</span>)).<br/>
+&nbsp;&nbsp;*<br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;&nbsp;*<br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+}<br/>
+<br/>
+<span class="comment">(**&nbsp;&nbsp;&nbsp;Next:&nbsp;<span class="inlinecode"><span class="id" type="var">Int.signed</span></span> <span class="inlinecode">(<span class="id" type="var">Int.repr</span></span> <span class="inlinecode">(<span class="id" type="var">add_list</span></span> <span class="inlinecode">(<span class="id" type="var">sublist</span></span> <span class="inlinecode">0</span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode"><span class="id" type="var">il</span>)))</span> 
+      <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">add_list</span></span> <span class="inlinecode">(<span class="id" type="var">sublist</span></span> <span class="inlinecode">0</span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode"><span class="id" type="var">il</span>)</span>.<br/>
+&nbsp;&nbsp;&nbsp;To&nbsp;prove&nbsp;that,&nbsp;we'll&nbsp;use&nbsp;<span class="inlinecode"><span class="id" type="var">Int.signed_repr</span></span>:<br/>
+*)</span><br/>
+<span class="id" type="keyword">Check</span> <span class="id" type="var">Int.signed_repr</span>.<br/>
+<span class="comment">(*&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;&nbsp;forall&nbsp;z&nbsp;:&nbsp;Z,&nbsp;&nbsp;&nbsp;Int.min_signed&nbsp;&lt;=&nbsp;z&nbsp;&lt;=&nbsp;Int.max_signed&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Int.signed&nbsp;(Int.repr&nbsp;z)&nbsp;=&nbsp;z.&nbsp;*)</span><br/>
+<span class="id" type="tactic">rewrite</span> <span class="id" type="var">Int.signed_repr</span> <span class="id" type="tactic">by</span> <span class="id" type="var">rep_omega</span>.<br/>
+</div>
+
+<div class="doc">
+<span class="inlinecode"><span class="id" type="var">rep_omega</span></span> is just like <span class="inlinecode"><span class="id" type="tactic">omega</span></span>, but it also knows the numeric values of
+    representation-related constants such as Int.min_signed. 
+</div>
+<div class="code code-tight">
+<span class="id" type="tactic">rewrite</span> <span class="id" type="var">Int.signed_repr</span> <span class="id" type="tactic">by</span> <span class="id" type="var">rep_omega</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">sublist_split</span> 0 <span class="id" type="var">i</span> (<span class="id" type="var">i</span>+1)) <span class="id" type="keyword">in</span> <span class="id" type="var">H<sub>4</sub></span> <span class="id" type="tactic">by</span> <span class="id" type="var">list_solve</span>.<br/>
+<span class="id" type="tactic">rewrite</span> <span class="id" type="var">add_list_app</span> <span class="id" type="keyword">in</span> <span class="id" type="var">H<sub>4</sub></span>.<br/>
+<span class="id" type="tactic">rewrite</span> <span class="id" type="var">sublist_len_1</span> <span class="id" type="keyword">in</span> <span class="id" type="var">H<sub>4</sub></span> <span class="id" type="tactic">by</span> <span class="id" type="var">list_solve</span>.<br/>
+<span class="id" type="tactic">simpl</span> <span class="id" type="keyword">in</span> <span class="id" type="var">H<sub>4</sub></span>.<br/>
+<span class="id" type="var">rep_omega</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab61"></a><h4 class="section">Exercise: 3 stars, standard (body_pop_and_add)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_pop_and_add</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_pop_and_add</span> <span class="id" type="var">pop_and_add_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="var">forward</span>.<br/>
+<span class="id" type="var">forward</span>.<br/>
+<span class="id" type="var">forward_while</span> (<span class="id" type="var">EX</span> <span class="id" type="var">i</span>:<span class="id" type="var">Z</span>, <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>(0 ≤ <span class="id" type="var">i</span> ≤ <span class="id" type="var">Zlength</span> <span class="id" type="var">il</span>) <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_st</span> <span class="id" type="var">st</span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">temp</span> <span class="id" type="var">_i</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">i</span>)); <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">temp</span> <span class="id" type="var">_n</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">il</span>)));<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">stack</span> (<span class="id" type="var">sublist</span> <span class="id" type="var">i</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">il</span>) <span class="id" type="var">il</span>) <span class="id" type="var">st</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)).<br/>
++ <span class="comment">(*&nbsp;Prove&nbsp;that&nbsp;the&nbsp;precondition&nbsp;implies&nbsp;the&nbsp;loop&nbsp;invariant&nbsp;*)</span><br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
++ <span class="comment">(*&nbsp;"type-check&nbsp;the&nbsp;expression":&nbsp;prove&nbsp;the&nbsp;loop&nbsp;test&nbsp;evaluates&nbsp;*)</span><br/>
+<span class="id" type="var">entailer</span>!.<br/>
++ <span class="comment">(*&nbsp;Prove&nbsp;the&nbsp;loop&nbsp;body&nbsp;preserves&nbsp;the&nbsp;loop&nbsp;invariant&nbsp;*)</span><br/>
+<span class="id" type="var">forward_call</span> (<span class="id" type="var">st</span>, <span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">il</span>, <span class="id" type="var">sublist</span> (<span class="id" type="var">i</span>+1) (<span class="id" type="var">Zlength</span> <span class="id" type="var">il</span>) <span class="id" type="var">il</span>, <span class="id" type="var">gv</span>).<br/>
+</div>
+
+<div class="doc">
+This <span class="inlinecode"><span class="id" type="var">forward_call</span></span> couldn't quite figure out the "Frame" for the 
+   function call. That is, it couldn't match up  
+   <span class="inlinecode"><span class="id" type="var">stack</span></span> <span class="inlinecode">(<span class="id" type="var">sublist</span></span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode">(<span class="id" type="var">Zlength</span></span> <span class="inlinecode"><span class="id" type="var">il</span>)</span> <span class="inlinecode"><span class="id" type="var">il</span>)</span> <span class="inlinecode"><span class="id" type="var">st</span></span>
+   with <span class="inlinecode"><span class="id" type="var">stack</span></span> <span class="inlinecode">(<span class="id" type="var">Znth</span></span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode"><span class="id" type="var">il</span></span> <span class="inlinecode">::</span> <span class="inlinecode"><span class="id" type="var">sublist</span></span> <span class="inlinecode">(<span class="id" type="var">i</span></span> <span class="inlinecode">+</span> <span class="inlinecode">1)</span> <span class="inlinecode">(<span class="id" type="var">Zlength</span></span> <span class="inlinecode"><span class="id" type="var">il</span>)</span> <span class="inlinecode"><span class="id" type="var">il</span>)</span> <span class="inlinecode"><span class="id" type="var">st</span></span>.
+   You have to help, by doing some rewrites with 
+   <span class="inlinecode"><span class="id" type="var">sublist_split</span>,</span> <span class="inlinecode"><span class="id" type="var">sublist_len_1</span></span> that prove 
+   <span class="inlinecode"><span class="id" type="var">sublist</span></span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode">(<span class="id" type="var">Zlength</span></span> <span class="inlinecode"><span class="id" type="var">il</span>)</span> <span class="inlinecode"><span class="id" type="var">il</span></span>  <span class="inlinecode">=<span class="id" type="var">Znth</span></span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode"><span class="id" type="var">il</span></span> <span class="inlinecode">::</span> <span class="inlinecode"><span class="id" type="var">sublist</span></span> <span class="inlinecode">(<span class="id" type="var">i</span></span> <span class="inlinecode">+</span> <span class="inlinecode">1)</span> <span class="inlinecode">(<span class="id" type="var">Zlength</span></span> <span class="inlinecode"><span class="id" type="var">il</span>)</span> <span class="inlinecode"><span class="id" type="var">il</span></span>.
+   When you've rewritten the goal into,
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">stack</span>&nbsp;(<span class="id" type="var">Znth</span>&nbsp;<span class="id" type="var">i</span>&nbsp;<span class="id" type="var">il</span>&nbsp;::&nbsp;<span class="id" type="var">sublist</span>&nbsp;(<span class="id" type="var">i</span>&nbsp;+&nbsp;1)&nbsp;(<span class="id" type="var">Zlength</span>&nbsp;<span class="id" type="var">il</span>)&nbsp;<span class="id" type="var">il</span>)&nbsp;<span class="id" type="var">st</span><br/>
+&nbsp;&nbsp;&nbsp;&#x22A2;-&nbsp;<span class="id" type="var">stack</span>&nbsp;(<span class="id" type="var">Znth</span>&nbsp;<span class="id" type="var">i</span>&nbsp;<span class="id" type="var">il</span>&nbsp;::&nbsp;<span class="id" type="var">sublist</span>&nbsp;(<span class="id" type="var">i</span>&nbsp;+&nbsp;1)&nbsp;(<span class="id" type="var">Zlength</span>&nbsp;<span class="id" type="var">il</span>)&nbsp;<span class="id" type="var">il</span>)&nbsp;<span class="id" type="var">st</span>&nbsp;*&nbsp;<span class="id" type="var">fold_right_sepcon</span>&nbsp;<span class="id" type="var">Frame</span>
+<div class="paragraph"> </div>
+
+</div>
+   then just do <span class="inlinecode"><span class="id" type="var">cancel</span></span>.  
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+</div>
+
+<div class="doc">
+And now we are ready to go forward through the C statement <span class="inlinecode"></span> <span class="inlinecode"><span class="id" type="var">_s</span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">_s</span></span> <span class="inlinecode">+</span> <span class="inlinecode"><span class="id" type="var">_t</span>;</span> <span class="inlinecode"></span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="var">Fail</span> <span class="id" type="var">forward</span>.<br/>
+</div>
+
+<div class="doc">
+oops!  we can't go <span class="inlinecode"><span class="id" type="var">forward</span></span> through <span class="inlinecode"></span> <span class="inlinecode"><span class="id" type="var">_s</span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">_s</span></span> <span class="inlinecode">+</span> <span class="inlinecode"><span class="id" type="var">_t</span>;</span> <span class="inlinecode"></span> 
+    because we forgot to mention <span class="inlinecode"><span class="id" type="var">temp</span></span> <span class="inlinecode"><span class="id" type="var">_s</span></span> in the loop invariant!
+    Time to start over.  
+
+<div class="paragraph"> </div>
+
+    By the way, this statement <span class="inlinecode"></span> <span class="inlinecode"><span class="id" type="var">_s</span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">_s</span></span> <span class="inlinecode">+</span> <span class="inlinecode"><span class="id" type="var">_t</span></span> <span class="inlinecode"></span> is exactly where <span class="inlinecode"><span class="id" type="var">forward</span></span>
+    will ask you to prove a subgoal in which you can use lemma <span class="inlinecode"><span class="id" type="var">add_another</span></span>.
+
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Abort</span>.<br/>
+</div>
+
+<div class="doc">
+Into this lemma, paste in the failed proof just above,
+   but adjust the loop invariant: add a LOCAL assertion for <span class="inlinecode"><span class="id" type="var">_s</span></span>. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_pop_and_add</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_pop_and_add</span> <span class="id" type="var">pop_and_add_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+Hint: choose the loop invariant for (temp <i>s ???) in such a way
+    that you can make use of Lemma add_another. 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab62"></a><h4 class="section">Exercise: 3 stars, standard (body_main)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_main</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_main</span> <span class="id" type="var">main_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+</div>
+
+<div class="doc">
+We assume that <span class="inlinecode"><span class="id" type="var">triang.c</span></span> is linked with an implementation of 
+    malloc/free.  That assumption is expressed by the <span class="inlinecode"><span class="id" type="var">create_mem_mgr</span></span>
+    axiom, which we can <span class="inlinecode"><span class="id" type="var">sep_apply</span></span> here.  On the other hand, if we want
+    a complete verified system including libraries, then instead of
+    importing <span class="inlinecode"><span class="id" type="var">floyd.library</span></span> we would actually link with a malloc/free
+    implementation, but that's beyond the scope of this chapter. 
+</div>
+<div class="code code-tight">
+<span class="id" type="var">sep_apply</span> (<span class="id" type="var">create_mem_mgr</span> <span class="id" type="var">gv</span>).<br/>
+</div>
+
+<div class="doc">
+You can see that this has produced the SEP conjunct <span class="inlinecode"><span class="id" type="var">mem_mgr</span></span> <span class="inlinecode"><span class="id" type="var">gv</span></span>,
+    which is useful to satisfy the precondition of <span class="inlinecode"><span class="id" type="var">newstack</span></span>,
+    <span class="inlinecode"><span class="id" type="var">push</span></span>, <span class="inlinecode"><span class="id" type="var">pop</span></span>, etc. Now you can finish this proof.  
+</div>
+<div class="code code-tight">
+
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="code code-tight">
+
+<span class="comment">(*&nbsp;Wed&nbsp;Apr&nbsp;24&nbsp;08:45:36&nbsp;EDT&nbsp;2019&nbsp;*)</span><br/>
+</div>
+</div>
+
+
+
+</div>
+
+</body>
+</html>

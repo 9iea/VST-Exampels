@@ -1,0 +1,1650 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link href="common/css/sf.css" rel="stylesheet" type="text/css"/>
+<title>Verif_hash: Correctness proof of hash.c</title>
+</head>
+<link href="common/jquery-ui/jquery-ui.css" rel="stylesheet">
+<script src="common/jquery-ui/external/jquery/jquery.js"></script>
+<script src="common/jquery-ui/jquery-ui.js"></script>
+<script src="common/toggleproofs.js"></script>
+<link href="common/css/vc.css" rel="stylesheet" type="text/css"/>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+<a href='https://www.cis.upenn.edu/~bcpierce/sf/current/index.html'>
+<img src='common/media/image/sf_logo_sm.png'></a>
+</br><a href='index.html'>  <span class='booktitleinheader'>Volume 5beta: Verifiable C</span><br></br>
+<ul id='menu'>
+   <a href='toc.html'><li class='section_name'>Table of Contents</li></a>
+   <a href='coqindex.html'><li class='section_name'>Index</li></a>
+</ul>
+</a></div>
+
+<div id="main">
+
+<h1 class="libtitle">Verif_hash<span class="subtitle">Correctness proof of hash.c</span></h1>
+
+
+<div class="doc">
+
+<div class="paragraph"> </div>
+
+ In this chapter we will prove that the C program, hash.c,
+  correctly implements the functional model in hashfun.v.
+  That proof, composed with the proof in hashfun.v that the 
+  functional model behaves correctly as a key-value map with 
+  string keys, demonstrates the correct behavior of hash.c. 
+<div class="paragraph"> </div>
+
+<a name="lab124"></a><h4 class="section">The usual boilerplate</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.proofauto</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.library</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span>  <span class="id" type="var">VC.hash</span>.<br/>
+<span class="id" type="keyword">Instance</span> <span class="id" type="var">CompSpecs</span> : <span class="id" type="var">compspecs</span>. <span class="id" type="var">make_compspecs</span> <span class="id" type="var">prog</span>. <span class="id" type="keyword">Defined</span>.<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">Vprog</span> : <span class="id" type="var">varspecs</span>. <span class="id" type="var">mk_varspecs</span> <span class="id" type="var">prog</span>. <span class="id" type="keyword">Defined</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VC.hints</span>. <span class="comment">(*&nbsp;Import&nbsp;special&nbsp;hints&nbsp;for&nbsp;this&nbsp;tutorial.&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+Now we import some VST libraries that don't come standard with
+  VST.floyd.proofauto. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.msl.wand_frame</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.msl.iter_sepcon</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.reassoc_seq</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.field_at_wand</span>.<br/>
+</div>
+
+<div class="doc">
+Now we import the functional model. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VC.Hashfun</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab125"></a><h1 class="section">Function specifications</h1>
+<a name="lab126"></a><h3 class="section">Imports from the C string library (see <a href="Verif_strlib.html"><span class="inlineref">Verif_strlib</span></a>)</h3>
+
+</div>
+<div class="code code-space">
+
+<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">strcmp_spec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_strcmp</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">str1</span> : <span class="id" type="var">val</span>, <span class="id" type="var">s<sub>1</sub></span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span>, <span class="id" type="var">str2</span> : <span class="id" type="var">val</span>, <span class="id" type="var">s<sub>2</sub></span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">PRE</span> [ 1 <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span>, 2 <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> 1 <span class="id" type="var">str1</span>; <span class="id" type="var">temp</span> 2 <span class="id" type="var">str2</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">str1</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">str2</span>)<br/>
+&nbsp;&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tint</span> ]<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">i</span> : <span class="id" type="var">int</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="keyword">if</span> <span class="id" type="var">Int.eq_dec</span> <span class="id" type="var">i</span> <span class="id" type="var">Int.zero</span> <span class="id" type="keyword">then</span> <span class="id" type="var">s<sub>1</sub></span> = <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="keyword">else</span> <span class="id" type="var">s<sub>1</sub></span> ≠ <span class="id" type="var">s<sub>2</sub></span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> (<span class="id" type="var">Vint</span> <span class="id" type="var">i</span>))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">str1</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">str2</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">strcpy_spec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_strcpy</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="keyword">dest</span> : <span class="id" type="var">val</span>, <span class="id" type="var">n</span> : <span class="id" type="var">Z</span>, <span class="id" type="var">src</span> : <span class="id" type="var">val</span>, <span class="id" type="var">s</span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">PRE</span> [ 1 <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span>, 2 <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">s</span> &lt; <span class="id" type="var">n</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> 1 <span class="id" type="keyword">dest</span>; <span class="id" type="var">temp</span> 2 <span class="id" type="var">src</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">data_at_</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tarray</span> <span class="id" type="var">tschar</span> <span class="id" type="var">n</span>) <span class="id" type="keyword">dest</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s</span> <span class="id" type="var">src</span>)<br/>
+&nbsp;&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> <span class="id" type="keyword">dest</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstringn</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s</span> <span class="id" type="var">n</span> <span class="id" type="keyword">dest</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s</span> <span class="id" type="var">src</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">strlen_spec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_strlen</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">s</span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span>, <span class="id" type="var">str</span>: <span class="id" type="var">val</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">PRE</span> [ 1 <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( )<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> 1 <span class="id" type="var">str</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s</span> <span class="id" type="var">str</span>)<br/>
+&nbsp;&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">size_t</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> (<span class="id" type="var">Vptrofs</span> (<span class="id" type="var">Ptrofs.repr</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">s</span>))))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">s</span> <span class="id" type="var">str</span>).<br/>
+</div>
+
+<div class="doc">
+<a name="lab127"></a><h3 class="section">String functions:  copy, hash</h3>
+
+</div>
+<div class="code code-space">
+
+<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">copy_string_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_copy_string</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">s</span>: <span class="id" type="var">val</span>, <span class="id" type="var">sigma</span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_s</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>; <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">p</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( ) <span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> <span class="id" type="var">p</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">p</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tarray</span> <span class="id" type="var">tschar</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">sigma</span> + 1)) <span class="id" type="var">p</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">hash_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_hash</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">s</span>: <span class="id" type="var">val</span>, <span class="id" type="var">contents</span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_s</span> <span class="id" type="var">OF</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span>) ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>  ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span>   (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">contents</span> <span class="id" type="var">s</span>)<br/>
+&nbsp;&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tuint</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span>  (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">hashfun</span> <span class="id" type="var">contents</span>))))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">contents</span> <span class="id" type="var">s</span>).<br/>
+</div>
+
+<div class="doc">
+<a name="lab128"></a><h3 class="section">Data structures for hash table</h3>
+
+<div class="paragraph"> </div>
+
+ Some abbreviations for C struct types that we use frequently 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">tcell</span> := <span class="id" type="var">Tstruct</span> <span class="id" type="var">_cell</span> <span class="id" type="var">noattr</span>.<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">thashtable</span> := <span class="id" type="var">Tstruct</span> <span class="id" type="var">_hashtable</span> <span class="id" type="var">noattr</span>.<br/>
+</div>
+
+<div class="doc">
+A <span class="inlinecode"><span class="id" type="var">list_cell</span></span> has four parts:
+
+<div class="paragraph"> </div>
+
+<ul class="doclist">
+<li> a linked list <i>cons</i> cell with a key-pointer <span class="inlinecode"><span class="id" type="var">kp</span></span>, integer <span class="inlinecode"><span class="id" type="var">count</span></span>, and pointer to the <span class="inlinecode"><span class="id" type="var">next</span></span> element of the linked list;
+
+</li>
+<li> the key-pointer points to a string (null-terminated array of char) containing the key;
+
+</li>
+<li> the cons cell was obtained by <span class="inlinecode"><span class="id" type="var">malloc</span></span>, and must be freeable by <span class="inlinecode"><span class="id" type="var">free</span></span>, and so there's a <span class="inlinecode"><span class="id" type="var">malloc_token</span></span> giving that capability;
+
+</li>
+<li> the key-string also has a <span class="inlinecode"><span class="id" type="var">malloc</span>-<span class="id" type="var">token</span></span> so that it can be freed
+
+</li>
+</ul>
+ 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">list_cell</span> (<span class="id" type="var">key</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>) (<span class="id" type="var">count</span>: <span class="id" type="var">Z</span>) (<span class="id" type="var">next</span>: <span class="id" type="var">val</span>) (<span class="id" type="var">p</span>: <span class="id" type="var">val</span>): <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">kp</span>: <span class="id" type="var">val</span>, <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">key</span> <span class="id" type="var">kp</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tarray</span> <span class="id" type="var">tschar</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">key</span> + 1)) <span class="id" type="var">kp</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> (<span class="id" type="var">kp</span>,(<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">count</span>), <span class="id" type="var">next</span>)) <span class="id" type="var">p</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> <span class="id" type="var">p</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">list_cell_local_facts</span>: <br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">next</span> <span class="id" type="var">p</span>, <span class="id" type="var">list_cell</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">next</span> <span class="id" type="var">p</span> &#x22A2;- !! <span class="id" type="var">isptr</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>. <span class="id" type="tactic">intros</span>. <span class="id" type="tactic">unfold</span> <span class="id" type="var">list_cell</span>. <span class="id" type="var">Intros</span> <span class="id" type="var">kp</span>. <span class="id" type="var">entailer</span>!. <span class="id" type="keyword">Qed</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">list_cell_local_facts</span>: <span class="id" type="var">saturate_local</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">list_cell_valid_pointer</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">next</span> <span class="id" type="var">p</span>, <span class="id" type="var">list_cell</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">next</span> <span class="id" type="var">p</span> &#x22A2;- <span class="id" type="var">valid_pointer</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>. <span class="id" type="tactic">intros</span>. <span class="id" type="tactic">unfold</span> <span class="id" type="var">list_cell</span>. <span class="id" type="var">Intros</span> <span class="id" type="var">kp</span>. <span class="id" type="var">entailer</span>!. <span class="id" type="keyword">Qed</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">list_cell_valid_pointer</span>: <span class="id" type="var">valid_pointer</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab129"></a><h4 class="section">Exercise: 1 star, standard (listcell_fold)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listcell_fold</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">key</span> <span class="id" type="var">kp</span> <span class="id" type="var">count</span> <span class="id" type="var">p'</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">key</span> <span class="id" type="var">kp</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tarray</span> <span class="id" type="var">tschar</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">key</span> + 1)) <span class="id" type="var">kp</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> (<span class="id" type="var">kp</span>, (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">count</span>), <span class="id" type="var">p'</span>)) <span class="id" type="var">p</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> <span class="id" type="var">p</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x22A2;- <span class="id" type="var">list_cell</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">p'</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="code code-tight">
+
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">listrep</span> (<span class="id" type="var">sigma</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>)) (<span class="id" type="var">x</span>: <span class="id" type="var">val</span>) : <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">sigma</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;| (<span class="id" type="var">s</span>,<span class="id" type="var">c</span>)::<span class="id" type="var">hs</span> ⇒ <span class="id" type="var">EX</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>, <span class="id" type="var">list_cell</span> <span class="id" type="var">s</span> <span class="id" type="var">c</span> <span class="id" type="var">y</span> <span class="id" type="var">x</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">hs</span> <span class="id" type="var">y</span><br/>
+&nbsp;| <span class="id" type="var">nil</span> ⇒ <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;!! (<span class="id" type="var">x</span> = <span class="id" type="var">nullval</span>) &amp;&amp; <span class="id" type="var">emp</span><br/>
+&nbsp;<span class="id" type="keyword">end</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab130"></a><h4 class="section">Exercise: 2 stars, standard (listrep_hints)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_local_prop</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">sigma</span> <span class="id" type="var">p</span>, <span class="id" type="var">listrep</span> <span class="id" type="var">sigma</span> <span class="id" type="var">p</span> &#x22A2;-<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!! (<span class="id" type="var">is_pointer_or_null</span> <span class="id" type="var">p</span>  ∧ (<span class="id" type="var">p</span>=<span class="id" type="var">nullval</span> ↔ <span class="id" type="var">sigma</span>=<span class="id" type="var">nil</span>)).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">listrep_local_prop</span> : <span class="id" type="var">saturate_local</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_valid_pointer</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">sigma</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">sigma</span> <span class="id" type="var">p</span> &#x22A2;- <span class="id" type="var">valid_pointer</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">listrep_valid_pointer</span> : <span class="id" type="var">valid_pointer</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_fold</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">p'</span> <span class="id" type="var">p</span> <span class="id" type="var">al</span>, <br/>
+&nbsp;&nbsp;<span class="id" type="var">list_cell</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">p'</span> <span class="id" type="var">p</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">p'</span> &#x22A2;- <span class="id" type="var">listrep</span> ((<span class="id" type="var">key</span>,<span class="id" type="var">count</span>)::<span class="id" type="var">al</span>) <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>. <span class="id" type="tactic">intros</span>. <span class="id" type="tactic">simpl</span>. <span class="id" type="var">Exists</span> <span class="id" type="var">p'</span>. <span class="id" type="var">cancel</span>. <span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+A <span class="inlinecode"><span class="id" type="var">listbox</span></span> is a pointer to a pointer to a cons cell. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">listboxrep</span> <span class="id" type="var">al</span> <span class="id" type="var">r</span> :=<br/>
+&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">p</span>:<span class="id" type="var">val</span>, <span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">p</span> <span class="id" type="var">r</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">p</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">uncurry</span> {<span class="id" type="var">A</span> <span class="id" type="var">B</span> <span class="id" type="var">C</span>} (<span class="id" type="var">f</span>: <span class="id" type="var">A</span> → <span class="id" type="var">B</span> → <span class="id" type="var">C</span>) (<span class="id" type="var">xy</span>: <span class="id" type="var">A</span>*<span class="id" type="var">B</span>) : <span class="id" type="var">C</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">f</span> (<span class="id" type="var">fst</span> <span class="id" type="var">xy</span>) (<span class="id" type="var">snd</span> <span class="id" type="var">xy</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">hashtable_rep</span> (<span class="id" type="var">contents</span>: <span class="id" type="var">hashtable_contents</span>) (<span class="id" type="var">p</span>: <span class="id" type="var">val</span>) : <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">bl</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>) * <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;!! (<span class="id" type="var">contents</span> = <span class="id" type="var">map</span> <span class="id" type="var">fst</span> <span class="id" type="var">bl</span>) &amp;&amp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> <span class="id" type="var">p</span> * <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>] (<span class="id" type="var">map</span> <span class="id" type="var">snd</span> <span class="id" type="var">bl</span>) <span class="id" type="var">p</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">iter_sepcon</span> (<span class="id" type="var">uncurry</span> <span class="id" type="var">listrep</span>) <span class="id" type="var">bl</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab131"></a><h4 class="section">Exercise: 2 stars, standard (hashtable_rep_hints)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">hashtable_rep_local_facts</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">contents</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;<span class="id" type="var">hashtable_rep</span> <span class="id" type="var">contents</span> <span class="id" type="var">p</span> &#x22A2;- !! (<span class="id" type="var">isptr</span> <span class="id" type="var">p</span> ∧ <span class="id" type="var">Zlength</span> <span class="id" type="var">contents</span> = <span class="id" type="var">N</span>).<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">hashtable_rep_local_facts</span> : <span class="id" type="var">saturate_local</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">hashtable_rep_valid_pointer</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">contents</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;<span class="id" type="var">hashtable_rep</span> <span class="id" type="var">contents</span> <span class="id" type="var">p</span> &#x22A2;- <span class="id" type="var">valid_pointer</span> <span class="id" type="var">p</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">hashtable_rep_valid_pointer</span> : <span class="id" type="var">valid_pointer</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab132"></a><h3 class="section">Function specifications for hash table</h3>
+
+</div>
+<div class="code code-space">
+
+<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">new_table_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_new_table</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ ] <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>()<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span>(<span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tptr</span> <span class="id" type="var">thashtable</span> ] <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">p</span>:<span class="id" type="var">val</span>, <span class="id" type="var">PROP</span>() <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> <span class="id" type="var">p</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span>(<span class="id" type="var">hashtable_rep</span> <span class="id" type="var">empty_table</span> <span class="id" type="var">p</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">new_cell_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_new_cell</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">s</span>: <span class="id" type="var">val</span>, <span class="id" type="var">key</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>, <span class="id" type="var">count</span>: <span class="id" type="var">Z</span>, <span class="id" type="var">next</span>: <span class="id" type="var">val</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_key</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span>, <span class="id" type="var">_count</span> <span class="id" type="var">OF</span> <span class="id" type="var">tint</span>, <span class="id" type="var">_next</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span> ] <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>()<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">temp</span> <span class="id" type="var">_key</span> <span class="id" type="var">s</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_count</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">count</span>));<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">temp</span> <span class="id" type="var">_next</span> <span class="id" type="var">next</span>; <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span>(<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">key</span> <span class="id" type="var">s</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span> ] <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">p</span>:<span class="id" type="var">val</span>, <span class="id" type="var">PROP</span>() <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> <span class="id" type="var">p</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span>(<span class="id" type="var">list_cell</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">next</span> <span class="id" type="var">p</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">key</span> <span class="id" type="var">s</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">get_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_get</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">p</span>: <span class="id" type="var">val</span>, <span class="id" type="var">contents</span>: <span class="id" type="var">hashtable_contents</span>, <span class="id" type="var">s</span>: <span class="id" type="var">val</span>, <span class="id" type="var">sigma</span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_table</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_hashtable</span> <span class="id" type="var">noattr</span>), <span class="id" type="var">_s</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> () <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_table</span> <span class="id" type="var">p</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">hashtable_rep</span> <span class="id" type="var">contents</span> <span class="id" type="var">p</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tuint</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( )<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">hashtable_get</span> <span class="id" type="var">sigma</span> <span class="id" type="var">contents</span>))))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">hashtable_rep</span> <span class="id" type="var">contents</span> <span class="id" type="var">p</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">incr_list_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_incr_list</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">r<sub>0</sub></span>: <span class="id" type="var">val</span>, <span class="id" type="var">al</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>), <span class="id" type="var">s</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">sigma</span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_r<sub>0</sub></span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>), <span class="id" type="var">_s</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">list_get</span> <span class="id" type="var">sigma</span> <span class="id" type="var">al</span> &lt; <span class="id" type="var">Int.max_unsigned</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_r<sub>0</sub></span> <span class="id" type="var">r<sub>0</sub></span>; <span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>; <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">listboxrep</span> <span class="id" type="var">al</span> <span class="id" type="var">r<sub>0</sub></span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tvoid</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( ) <span class="id" type="var">LOCAL</span> ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">listboxrep</span> (<span class="id" type="var">list_incr</span> <span class="id" type="var">sigma</span> <span class="id" type="var">al</span>) <span class="id" type="var">r<sub>0</sub></span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">incr_spec</span> : <span class="id" type="var">ident</span> * <span class="id" type="var">funspec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_incr</span><br/>
+&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">p</span>: <span class="id" type="var">val</span>, <span class="id" type="var">contents</span>: <span class="id" type="var">hashtable_contents</span>, <span class="id" type="var">s</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">sigma</span> : <span class="id" type="var">list</span> <span class="id" type="var">byte</span>, <span class="id" type="var">gv</span>: <span class="id" type="var">globals</span><br/>
+&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_table</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> (<span class="id" type="var">Tstruct</span> <span class="id" type="var">_hashtable</span> <span class="id" type="var">noattr</span>), <span class="id" type="var">_s</span> <span class="id" type="var">OF</span> <span class="id" type="var">tptr</span> <span class="id" type="var">tschar</span> ] <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">hashtable_get</span> <span class="id" type="var">sigma</span> <span class="id" type="var">contents</span> &lt; <span class="id" type="var">Int.max_unsigned</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_table</span> <span class="id" type="var">p</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>; <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">hashtable_rep</span> <span class="id" type="var">contents</span> <span class="id" type="var">p</span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)<br/>
+&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tvoid</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( ) <span class="id" type="var">LOCAL</span> ()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">hashtable_rep</span> (<span class="id" type="var">hashtable_incr</span> <span class="id" type="var">sigma</span>  <span class="id" type="var">contents</span>) <span class="id" type="var">p</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>).<br/>
+</div>
+
+<div class="doc">
+ Putting all the funspecs together 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">Gprog</span> : <span class="id" type="var">funspecs</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">ltac</span>:(<span class="id" type="var">with_library</span> <span class="id" type="var">prog</span> [<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">strcmp_spec</span>; <span class="id" type="var">strcpy_spec</span>; <span class="id" type="var">strlen_spec</span>; <span class="id" type="var">hash_spec</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">new_cell_spec</span>; <span class="id" type="var">copy_string_spec</span>; <span class="id" type="var">get_spec</span>; <span class="id" type="var">incr_spec</span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">incr_list_spec</span><br/>
+&nbsp;]).<br/>
+</div>
+
+<div class="doc">
+<a name="lab133"></a><h1 class="section">Proofs of the functions <span class="inlinecode"><span class="id" type="var">hash</span></span>, <span class="inlinecode"><span class="id" type="var">copy_string</span></span>, <span class="inlinecode"><span class="id" type="var">new_cell</span></span></h1>
+
+<div class="paragraph"> </div>
+
+ Before attempting to prove <span class="inlinecode"><span class="id" type="var">body_hash</span></span>, do <a href="Verif_strlib.html"><span class="inlineref">Verif_strlib</span></a> at
+    least through <span class="inlinecode"><span class="id" type="var">body_strlen</span></span>. 
+<div class="paragraph"> </div>
+
+<a name="lab134"></a><h4 class="section">Exercise: 3 stars, standard (body_hash)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_hash</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_hash</span> <span class="id" type="var">hash_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="tactic">unfold</span> <span class="id" type="var">cstring</span>,<span class="id" type="var">hashfun</span> <span class="id" type="keyword">in</span> *.<br/>
+</div>
+
+<div class="doc">
+
+<div class="paragraph"> </div>
+
+  In the PROP part of your loop invariant, you'll want to maintain
+    <span class="inlinecode">0</span> <span class="inlinecode">≤</span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode">≤</span> <span class="inlinecode"><span class="id" type="var">Zlength</span></span> <span class="inlinecode"><span class="id" type="var">contents</span></span>.
+  In the LOCAL part of your loop invariant, try to use something like
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">temp</span>&nbsp;<span class="id" type="var">_c</span>&nbsp;(<span class="id" type="var">Vbyte</span>&nbsp;(<span class="id" type="var">Znth</span>&nbsp;<span class="id" type="var">i</span>&nbsp;(<span class="id" type="var">contents</span>&nbsp;++&nbsp;[<span class="id" type="var">Byte.zero</span>]))
+<div class="paragraph"> </div>
+
+</div>
+  instead of 
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">temp</span>&nbsp;<span class="id" type="var">_c</span>&nbsp;(<span class="id" type="var">Znth</span>&nbsp;<span class="id" type="var">i</span>&nbsp;(<span class="id" type="var">map</span>&nbsp;<span class="id" type="var">Vbyte</span>&nbsp;(...)))
+<div class="paragraph"> </div>
+
+</div>
+  The reason is that <span class="inlinecode"><span class="id" type="var">temp</span></span> <span class="inlinecode"><span class="id" type="var">_c</span></span> <span class="inlinecode">(<span class="id" type="var">Vint</span></span> <span class="inlinecode"><span class="id" type="var">x</span>)</span> or <span class="inlinecode"><span class="id" type="var">temp</span></span> <span class="inlinecode"><span class="id" type="var">_c</span></span> <span class="inlinecode">(<span class="id" type="var">Vbyte</span></span> <span class="inlinecode"><span class="id" type="var">y</span>)</span> is much 
+  easier for Floyd to handle than <span class="inlinecode"><span class="id" type="var">temp</span></span> <span class="inlinecode"><span class="id" type="var">_c</span></span> <span class="inlinecode"><span class="id" type="var">X</span></span>
+  where X is a general formula of type <span class="inlinecode"><span class="id" type="var">val</span></span>.
+
+<div class="paragraph"> </div>
+
+  Late in the proof of the loop body, the lemma <span class="inlinecode"><span class="id" type="var">hashfun_snoc</span></span> will be useful. 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab135"></a><h4 class="section">Exercise: 3 stars, standard (body_copy_string)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_copy_string</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_copy_string</span> <span class="id" type="var">copy_string_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="var">assert_PROP</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">sigma</span> + 1 ≤ <span class="id" type="var">Ptrofs.max_unsigned</span>) <span class="id" type="tactic">by</span> <span class="id" type="var">entailer</span>!.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab136"></a><h4 class="section">Exercise: 3 stars, standard (body_new_cell)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_new_cell</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_new_cell</span> <span class="id" type="var">new_cell_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab137"></a><h1 class="section">Proof of the <span class="inlinecode"><span class="id" type="var">new_table</span></span> function</h1>
+
+<div class="paragraph"> </div>
+
+<a name="lab138"></a><h2 class="section">Auxiliary lemmas about data-structure predicates</h2>
+
+<div class="paragraph"> </div>
+
+<a name="lab139"></a><h4 class="section">Exercise: 2 stars, standard (iter_sepcon_hints)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">iter_sepcon_listrep_local_facts</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">bl</span>, <span class="id" type="var">iter_sepcon</span> (<span class="id" type="var">uncurry</span> <span class="id" type="var">listrep</span>) <span class="id" type="var">bl</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x22A2;- !! <span class="id" type="var">Forall</span> <span class="id" type="var">is_pointer_or_null</span> (<span class="id" type="var">map</span> <span class="id" type="var">snd</span> <span class="id" type="var">bl</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;Hint:&nbsp;use&nbsp;<span class="inlinecode"><span class="id" type="tactic">induction</span></span>&nbsp;and&nbsp;<span class="inlinecode"><span class="id" type="var">sep_apply</span></span>.&nbsp;*)</span><br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">iter_sepcon_listrep_local_facts</span> : <span class="id" type="var">saturate_local</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab140"></a><h4 class="section">Exercise: 2 stars, standard (iter_sepcon_split3)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">iter_sepcon_split3</span>: <br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span>{<span class="id" type="var">A</span>}{<span class="id" type="var">d</span>: <span class="id" type="var">Inhabitant</span> <span class="id" type="var">A</span>} (<span class="id" type="var">i</span>: <span class="id" type="var">Z</span>) (<span class="id" type="var">al</span>: <span class="id" type="var">list</span> <span class="id" type="var">A</span>) (<span class="id" type="var">f</span>: <span class="id" type="var">A</span> → <span class="id" type="var">mpred</span>),<br/>
+&nbsp;&nbsp;&nbsp;0 ≤ <span class="id" type="var">i</span> &lt; <span class="id" type="var">Zlength</span> <span class="id" type="var">al</span>   → <br/>
+&nbsp;&nbsp;<span class="id" type="var">iter_sepcon</span> <span class="id" type="var">f</span> <span class="id" type="var">al</span> = <br/>
+&nbsp;&nbsp;<span class="id" type="var">iter_sepcon</span> <span class="id" type="var">f</span> (<span class="id" type="var">sublist</span> 0 <span class="id" type="var">i</span> <span class="id" type="var">al</span>) * <span class="id" type="var">f</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">al</span>) * <span class="id" type="var">iter_sepcon</span> <span class="id" type="var">f</span> (<span class="id" type="var">sublist</span> (<span class="id" type="var">i</span>+1) (<span class="id" type="var">Zlength</span> <span class="id" type="var">al</span>) <span class="id" type="var">al</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+<span class="id" type="tactic">rewrite</span> &lt;- (<span class="id" type="var">sublist_same</span> 0 (<span class="id" type="var">Zlength</span> <span class="id" type="var">al</span>) <span class="id" type="var">al</span>) <span class="id" type="tactic">at</span> 1 <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+<span class="comment">(*&nbsp;Hint:&nbsp;<span class="inlinecode"><span class="id" type="tactic">rewrite</span></span> <span class="inlinecode">(<span class="id" type="var">sublist_split</span></span> <span class="inlinecode"><span class="id" type="var">LO</span></span> <span class="inlinecode"><span class="id" type="var">MID</span></span> <span class="inlinecode"><span class="id" type="var">HI</span>)</span> <span class="inlinecode"><span class="id" type="tactic">by</span></span> <span class="inlinecode"><span class="id" type="tactic">omega</span></span>,&nbsp;where&nbsp;you&nbsp;choose<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;values&nbsp;for&nbsp;LO&nbsp;MID&nbsp;HI.&nbsp;<br/>
+&nbsp;&nbsp;Also&nbsp;useful:&nbsp;&nbsp;<span class="inlinecode"><span class="id" type="tactic">rewrite</span></span> <span class="inlinecode"><span class="id" type="var">sublist_len_1</span></span>&nbsp;&nbsp;&nbsp;&nbsp;and&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" type="var">iter_sepcon_app</span></span>.<br/>
+&nbsp;&nbsp;Finally,&nbsp;you'll&nbsp;have&nbsp;to&nbsp;use&nbsp;the&nbsp;associativity-commutativity&nbsp;of&nbsp;the&nbsp;"*"&nbsp;<br/>
+&nbsp;&nbsp;operator:&nbsp;lemmas&nbsp;<span class="inlinecode"><span class="id" type="var">sepcon_emp</span>,</span> <span class="inlinecode"><span class="id" type="var">sepcon_assoc</span>,</span> <span class="inlinecode"><span class="id" type="var">sepcon_comm</span></span>,&nbsp;etc.<br/>
+*)</span><br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab141"></a><h4 class="section">Exercise: 3 stars, standard (body_new_table)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_new_table_helper</span>: <br/>
+&nbsp;<span class="comment">(*&nbsp;This&nbsp;lemma&nbsp;is&nbsp;useful&nbsp;as&nbsp;the&nbsp;very&nbsp;last&nbsp;thing&nbsp;to&nbsp;do&nbsp;in&nbsp;body_new_table&nbsp;*)</span><br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span>, <br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> (<span class="id" type="var">list_repeat</span> (<span class="id" type="var">Z.to_nat</span> <span class="id" type="var">N</span>) <span class="id" type="var">nullval</span>) <span class="id" type="var">p</span><br/>
+&nbsp;&nbsp;&#x22A2;- <span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">list_repeat</span> (<span class="id" type="var">Z.to_nat</span> <span class="id" type="var">N</span>) <span class="id" type="var">nullval</span>) <span class="id" type="var">p</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">iter_sepcon</span> (<span class="id" type="var">uncurry</span> <span class="id" type="var">listrep</span>) (<span class="id" type="var">list_repeat</span> (<span class="id" type="var">Z.to_nat</span> <span class="id" type="var">N</span>) ([], <span class="id" type="var">nullval</span>)).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+<span class="id" type="var">unfold_data_at</span> (<span class="id" type="var">data_at</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">p</span>).<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_new_table</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_new_table</span> <span class="id" type="var">new_table_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+The loop invariant in this function describes a partially 
+  initialized array. The best way to do that is with something like,
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">data_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">thashtable</span>&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">list_repeat</span>&nbsp;(<span class="id" type="var">Z.to_nat</span>&nbsp;<span class="id" type="var">i</span>)&nbsp;<span class="id" type="var">nullval</span>&nbsp;++&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">list_repeat</span>&nbsp;(<span class="id" type="var">Z.to_nat</span>&nbsp;(<span class="id" type="var">N</span>-<span class="id" type="var">i</span>))&nbsp;<span class="id" type="var">Vundef</span>)&nbsp;&nbsp;&nbsp;<span class="id" type="var">p</span>.
+<div class="paragraph"> </div>
+
+</div>
+  Then at some point you'll have to prove something about,
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">thashtable</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">list_repeat</span>&nbsp;(<span class="id" type="var">Z.to_nat</span>&nbsp;(<span class="id" type="var">i</span>&nbsp;+&nbsp;1))&nbsp;<span class="id" type="var">nullval</span>&nbsp;++&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">list_repeat</span>&nbsp;(<span class="id" type="var">Z.to_nat</span>&nbsp;(<span class="id" type="var">N</span>&nbsp;-&nbsp;(<span class="id" type="var">i</span>&nbsp;+&nbsp;1)))&nbsp;<span class="id" type="var">Vundef</span>)&nbsp;&nbsp;&nbsp;<span class="id" type="var">p</span>
+<div class="paragraph"> </div>
+
+</div>
+  In particular, you'll have to split up 
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">list_repeat</span>&nbsp;(<span class="id" type="var">Z.to_nat</span>&nbsp;(<span class="id" type="var">i</span>&nbsp;+&nbsp;1))&nbsp;<span class="id" type="var">nullval</span>
+<div class="paragraph"> </div>
+
+</div>
+   into 
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">list_repeat</span>&nbsp;(<span class="id" type="var">Z.to_nat</span>&nbsp;<span class="id" type="var">i</span>)&nbsp;<span class="id" type="var">nullval</span>&nbsp;++&nbsp;<span class="id" type="var">list_repeat</span>&nbsp;(<span class="id" type="var">Z.to_nat</span>&nbsp;1)&nbsp;<span class="id" type="var">nullval</span>.
+<div class="paragraph"> </div>
+
+</div>
+  The best way to do that is <span class="inlinecode"><span class="id" type="tactic">rewrite</span></span> <span class="inlinecode">&lt;-</span> <span class="inlinecode"><span class="id" type="var">list_repeat_app'</span></span>.
+
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab142"></a><h1 class="section">Proof of the <span class="inlinecode"><span class="id" type="var">get</span></span> function</h1>
+
+<div class="paragraph"> </div>
+
+<a name="lab143"></a><h4 class="section">Exercise: 2 stars, standard (listrep_traverse)</h4>
+
+<div class="paragraph"> </div>
+
+ Consider this loop in the <span class="inlinecode"><span class="id" type="var">get</span></span> function:
+<pre>
+  while (p) {
+    if (strcmp(p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>key, s)==0)
+      return p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>count;
+    p=p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>next;
+  }
+</pre>
+   We will reason about linked-list traversal in separation logic
+   using "Magic Wand as Frame" 
+   http://www.cs.princeton.edu/~appel/papers/wand-frame.pdf
+
+<div class="paragraph"> </div>
+
+  When the loop is partway down the linked list, we can view the
+  original list up to the current position as a "linked-list data
+  structure with a hole"; and the current position points to a
+  linked-list data structure that fills the hole.  The
+  "data-structure-with-a-hole" we reason about with separating
+  implication, called "magic wand": (hole -* data-structure) which says,
+  if you can conjoin this data-structure-with-a-hole with
+  something-to-fill-the-hole, then you get the original data structure:
+  hole * (hole -* data-structure) |&mdash; data-structure. 
+
+<div class="paragraph"> </div>
+
+ Before the loop, we have a precondition such as,
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;(<span class="id" type="var">listrep</span>&nbsp;<span class="id" type="var">b<sub>0</sub></span>&nbsp;<span class="id" type="var">p<sub>0</sub></span>;&nbsp;<span class="id" type="var">other_stuff</span>)
+<div class="paragraph"> </div>
+
+</div>
+ After a few loop iterations, we have a situation like,
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;(<span class="id" type="var">listrep</span>&nbsp;<span class="id" type="var">b</span>&nbsp;<span class="id" type="var">p</span>;&nbsp;(<span class="id" type="var">listrep</span>&nbsp;<span class="id" type="var">b</span>&nbsp;<span class="id" type="var">p</span>&nbsp;-*&nbsp;<span class="id" type="var">listrep</span>&nbsp;<span class="id" type="var">b<sub>0</sub></span>&nbsp;<span class="id" type="var">p<sub>0</sub></span>);&nbsp;<span class="id" type="var">other_stuff</span>)
+<div class="paragraph"> </div>
+
+</div>
+ If the loop reaches <span class="inlinecode"><span class="id" type="var">p</span>==<span class="id" type="var">NULL</span></span>, then we have,
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;(<span class="id" type="var">listrep</span>&nbsp;<span class="id" type="var">nil</span>&nbsp;<span class="id" type="var">nullval</span>;&nbsp;(<span class="id" type="var">listrep</span>&nbsp;<span class="id" type="var">nil</span>&nbsp;<span class="id" type="var">nullval</span>&nbsp;-*&nbsp;<span class="id" type="var">listrep</span>&nbsp;<span class="id" type="var">b<sub>0</sub></span>&nbsp;<span class="id" type="var">p<sub>0</sub></span>);&nbsp;<span class="id" type="var">other_stuff</span>)
+<div class="paragraph"> </div>
+
+</div>
+ The <span class="inlinecode"><span class="id" type="var">listrep_traverse_</span>*</span> lemmas in this exercise illustrate how
+ to start a traversal, how to perform one iteration of the traversal,
+ and how to finish a traversal. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_traverse_start</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span> <span class="id" type="var">al</span>, <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">emp</span> &#x22A2;- <span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">p</span> -* <span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">p</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_traverse_step</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">al</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">p'</span> <span class="id" type="var">p</span>, <br/>
+&nbsp;&nbsp;<span class="id" type="var">list_cell</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">p'</span> <span class="id" type="var">p</span> &#x22A2;- <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">p'</span> -* <span class="id" type="var">listrep</span> ((<span class="id" type="var">key</span>, <span class="id" type="var">count</span>) :: <span class="id" type="var">al</span>) <span class="id" type="var">p</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_traverse_step_example</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">kp</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">al</span> <span class="id" type="var">q</span> <span class="id" type="var">p</span> <span class="id" type="var">b<sub>0</sub></span> <span class="id" type="var">p<sub>0</sub></span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">key</span> <span class="id" type="var">kp</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">listrep</span> ((<span class="id" type="var">key</span>, <span class="id" type="var">count</span>) :: <span class="id" type="var">al</span>) <span class="id" type="var">p</span> -* <span class="id" type="var">listrep</span> <span class="id" type="var">b<sub>0</sub></span> <span class="id" type="var">p<sub>0</sub></span>) *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tarray</span> <span class="id" type="var">tschar</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">key</span> + 1)) <span class="id" type="var">kp</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> (<span class="id" type="var">kp</span>, (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">count</span>), <span class="id" type="var">q</span>)) <span class="id" type="var">p</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> <span class="id" type="var">p</span> * <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">q</span> <br/>
+&nbsp;&nbsp;&#x22A2;- <span class="id" type="var">listrep</span> <span class="id" type="var">b<sub>0</sub></span> <span class="id" type="var">p<sub>0</sub></span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+</div>
+
+<div class="doc">
+Hint: use <span class="inlinecode"><span class="id" type="var">sep_apply</span></span> with the lemmas <span class="inlinecode"><span class="id" type="var">listcell_fold</span></span>, 
+  <span class="inlinecode"><span class="id" type="var">listrep_traverse_step</span></span>, <span class="inlinecode"><span class="id" type="var">wand_frame_ver</span></span>, <span class="inlinecode"><span class="id" type="var">modus_ponens_wand</span></span>. 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_traverse_finish</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">al</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">nil</span> <span class="id" type="var">nullval</span>  *  (<span class="id" type="var">listrep</span> <span class="id" type="var">nil</span> <span class="id" type="var">nullval</span> -* <span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">p</span>)<br/>
+&nbsp;&nbsp;&#x22A2;- <span class="id" type="var">listrep</span> <span class="id" type="var">al</span> <span class="id" type="var">p</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab144"></a><h4 class="section">Exercise: 3 stars, standard (body_get)</h4>
+
+<div class="paragraph"> </div>
+
+ Use the <span class="inlinecode"><span class="id" type="var">listrep_traverse_</span>*</span> lemmas as appropriate. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_get</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_get</span> <span class="id" type="var">get_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="tactic">rename</span> <span class="id" type="var">p</span> <span class="id" type="var">into</span> <span class="id" type="var">table</span>.<br/>
+<span class="id" type="var">pose</span> <span class="id" type="var">proof</span> (<span class="id" type="var">hashfun_inrange</span> <span class="id" type="var">sigma</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="tactic">unfold</span> <span class="id" type="var">abbreviate</span> <span class="id" type="keyword">in</span> <span class="id" type="var">MORE_COMMANDS</span>; <span class="id" type="tactic">subst</span> <span class="id" type="var">MORE_COMMANDS</span>.<br/>
+</div>
+
+<div class="doc">
+This next command would not be part of an ordinary Verifiable C
+   proof, it is here only to guide you through the bigger proof. 
+</div>
+<div class="code code-tight">
+<span class="id" type="tactic">apply</span> <span class="id" type="var">seq_assoc1</span>; <span class="id" type="var">assert_after</span> 1<br/>
+&nbsp;(<span class="id" type="var">EX</span> <span class="id" type="var">cts</span>:<span class="id" type="var">list</span> (<span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>) * <span class="id" type="var">val</span>), <br/>
+&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">contents</span> = <span class="id" type="var">map</span> <span class="id" type="var">fst</span> <span class="id" type="var">cts</span> ) <br/>
+&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_h</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span>))); <span class="id" type="var">temp</span> <span class="id" type="var">_table</span> <span class="id" type="var">table</span>;  <span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>) <br/>
+&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> <span class="id" type="var">table</span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>] (<span class="id" type="var">map</span> <span class="id" type="var">snd</span> <span class="id" type="var">cts</span>) <span class="id" type="var">table</span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">iter_sepcon</span> (<span class="id" type="var">uncurry</span> <span class="id" type="var">listrep</span>) <span class="id" type="var">cts</span>))%<span class="id" type="tactic">assert</span>.<br/>
+{<br/>
+&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+}<br/>
+<span class="id" type="var">Intros</span> <span class="id" type="var">cts</span>; <span class="id" type="tactic">subst</span> <span class="id" type="var">contents</span>.<br/>
+<span class="id" type="var">forward</span>.<br/>
+<span class="id" type="var">deadvars</span>!.<br/><hr class='doublespaceincode'/>
+<span class="id" type="var">autorewrite</span> <span class="id" type="keyword">with</span> <span class="id" type="var">norm</span>.<br/>
+</div>
+
+<div class="doc">
+The previous line's <span class="inlinecode"><span class="id" type="var">autorewrite</span></span> works only because 
+  of hypothesis H. If you  <span class="inlinecode"><span class="id" type="tactic">clear</span></span> <span class="inlinecode"><span class="id" type="var">H</span>;</span> <span class="inlinecode"><span class="id" type="var">autorewrite</span></span> <span class="inlinecode"><span class="id" type="keyword">with</span></span> <span class="inlinecode"><span class="id" type="var">norm</span></span> you'll see
+  that the <span class="inlinecode"><span class="id" type="var">Int.modu</span></span> is not eliminated. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">N_eq</span>.<br/>
+</div>
+
+<div class="doc">
+The purpose of this rewrite is to preserve a little 
+  bit of abstraction in the proofs.   Because N_eq is in the rep_omega
+  Hint database, the <span class="inlinecode"><span class="id" type="var">rep_omega</span></span> tactic "knows" that N=109. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="tactic">assert</span> (0 ≤ <span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span> <span class="id" type="var">mod</span> <span class="id" type="var">N</span> &lt; <span class="id" type="var">N</span>).<br/>
+</div>
+
+<div class="doc">
+It is useful to put facts like this above the line, to support 
+      <span class="inlinecode"><span class="id" type="var">rep_omega</span></span> in reasoning about conversions between Z and Int. 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+<span class="id" type="var">assert_PROP</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">cts</span> = <span class="id" type="var">N</span>) <span class="id" type="keyword">as</span> <span class="id" type="var">H<sub>1</sub></span>.<br/>
+</div>
+
+<div class="doc">
+It is useful to put equations like this above the line, to support <span class="inlinecode"><span class="id" type="var">list_solve</span></span>,
+      <span class="inlinecode"><span class="id" type="var">rep_omega</span></span>,  and other tactics such as <span class="inlinecode"><span class="id" type="var">entailer</span>!</span> that call them. 
+</div>
+<div class="code code-tight">
+{<br/>
+&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+}<br/>
+<span class="id" type="var">forward</span>.<br/>
+</div>
+
+<div class="doc">
+Where did this proof goal come from?  <span class="inlinecode"><span class="id" type="var">denote_tc_assert</span></span> is a
+     "type-checking assertion", that is, "prove that a C expression
+     evaluates without crashing."  In this case, the expression was
+     <span class="inlinecode"><span class="id" type="var">table</span>→<span class="id" type="var">buckets</span>[<span class="id" type="var">b</span>]</span>, and we have to prove here that <span class="inlinecode"><span class="id" type="var">b</span></span> is in
+     bounds of the array, and that the b'th element of the array is,
+     in fact, initialized.
+
+<div class="paragraph"> </div>
+
+      The hypothesis H<sub>1</sub> that you proved above is generally useful, and
+      particularly in this proof right here. 
+</div>
+<div class="code code-tight">
+&nbsp;{  <span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;}<br/>
+<span class="id" type="tactic">set</span> (<span class="id" type="var">h</span> := <span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span> <span class="id" type="var">mod</span> <span class="id" type="var">N</span>) <span class="id" type="keyword">in</span> *.<br/>
+</div>
+
+<div class="doc">
+This next line would not be part of an ordinary Verifiable C
+   proof, it is here only to guide you through the bigger proof. 
+</div>
+<div class="code code-tight">
+<span class="id" type="tactic">eapply</span> <span class="id" type="var">semax_pre</span>; [ <span class="id" type="var">instantiate</span> (1:=<br/>
+&nbsp;&nbsp;<span class="id" type="var">PROP</span> ( )   <span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_p</span> (<span class="id" type="var">snd</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">h</span> <span class="id" type="var">cts</span>)); <span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>)  <br/>
+&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> <span class="id" type="var">table</span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>] (<span class="id" type="var">map</span> <span class="id" type="var">snd</span> <span class="id" type="var">cts</span>) <span class="id" type="var">table</span>; <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">iter_sepcon</span> (<span class="id" type="var">uncurry</span> <span class="id" type="var">listrep</span>) (<span class="id" type="var">sublist</span> 0 <span class="id" type="var">h</span> <span class="id" type="var">cts</span>);<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> (<span class="id" type="var">fst</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">h</span> <span class="id" type="var">cts</span>)) (<span class="id" type="var">snd</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">h</span> <span class="id" type="var">cts</span>)); <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">iter_sepcon</span> (<span class="id" type="var">uncurry</span> <span class="id" type="var">listrep</span>) (<span class="id" type="var">sublist</span> (<span class="id" type="var">h</span> + 1) (<span class="id" type="var">Zlength</span> <span class="id" type="var">cts</span>) <span class="id" type="var">cts</span>))) | ].<br/>
+{ <span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+}<br/>
+<br/>
+<span class="id" type="tactic">destruct</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">h</span> <span class="id" type="var">cts</span>) <span class="id" type="keyword">as</span> [<span class="id" type="var">b<sub>0</sub></span> <span class="id" type="var">p<sub>0</sub></span>] <span class="id" type="var">eqn</span>:<span class="id" type="var">Hbp0</span>.<br/>
+<span class="id" type="tactic">simpl</span>.<br/>
+</div>
+
+<div class="doc">
+We have reached the while-loop that will walk down the linked list.
+    The pointer <span class="inlinecode"><span class="id" type="var">p<sub>0</sub></span></span> is the pointer to the beginning of a list that
+    represents the sequence <span class="inlinecode"><span class="id" type="var">b<sub>0</sub></span></span>.  As the loop progresses, the loop 
+    variable <span class="inlinecode"><span class="id" type="var">p</span></span> will move down the links, pointing to smaller sequences <span class="inlinecode"><span class="id" type="var">b</span></span>.
+
+<div class="paragraph"> </div>
+
+    We represent the list segment from <span class="inlinecode"><span class="id" type="var">p<sub>0</sub></span></span> to <span class="inlinecode"><span class="id" type="var">p</span></span> by a magic-wand
+    formula:  <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> <span class="inlinecode">-*</span> <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b<sub>0</sub></span></span> <span class="inlinecode"><span class="id" type="var">p<sub>0</sub></span></span>.  This means a heaplet 
+    (portion of memory) that, if you join it with a heaplet representing
+    <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span>, would represent the entire <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b<sub>0</sub></span></span> <span class="inlinecode"><span class="id" type="var">p<sub>0</sub></span></span>. 
+<div class="paragraph"> </div>
+
+ Several of our SEP conjuncts will not be needed until after the
+    loop is done.  We can hide them away in a single SEP-conjunct
+    <span class="inlinecode"><span class="id" type="var">FRZL</span></span> <span class="inlinecode"><span class="id" type="var">FR<sub>1</sub></span></span> by doing this command: 
+</div>
+<div class="code code-tight">
+<span class="id" type="var">freeze</span> <span class="id" type="var">FR<sub>1</sub></span> := (<span class="id" type="var">malloc_token</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">table</span>) (<span class="id" type="var">field_at</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">table</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">iter_sepcon</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span>) (<span class="id" type="var">iter_sepcon</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span>).<br/>
+</div>
+
+<div class="doc">
+The <span class="inlinecode"><span class="id" type="var">freeze</span></span> tactic "frames out" several conjuncts for a while, 
+  until later we <span class="inlinecode"><span class="id" type="var">thaw</span></span> <span class="inlinecode"><span class="id" type="var">FR<sub>1</sub></span></span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="var">forward_while</span> <br/>
+&nbsp;(<span class="id" type="var">EX</span> <span class="id" type="var">b</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>), <span class="id" type="var">EX</span> <span class="id" type="var">p</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>( <span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;the&nbsp;explanation&nbsp;of&nbsp;how&nbsp;<span class="inlinecode"><span class="id" type="var">b</span></span>&nbsp;relates&nbsp;to&nbsp;<span class="inlinecode"><span class="id" type="var">b<sub>0</sub></span></span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In&nbsp;particular,&nbsp;as&nbsp;you&nbsp;walk&nbsp;down&nbsp;the&nbsp;list&nbsp;past&nbsp;keys&nbsp;that<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;don't&nbsp;match&nbsp;sigma,&nbsp;the&nbsp;result&nbsp;you&nbsp;would&nbsp;obtain&nbsp;by<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" type="var">list_get</span></span> <span class="inlinecode"><span class="id" type="var">sigma</span></span>&nbsp;doesn't&nbsp;change.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_p</span> <span class="id" type="var">p</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">FRZL</span> <span class="id" type="var">FR<sub>1</sub></span>; <span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;THE&nbsp;REST&nbsp;OF&nbsp;THE&nbsp;LOOP&nbsp;INVARIANT&nbsp;HERE!<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;One&nbsp;of&nbsp;the&nbsp;conjuncts&nbsp;should&nbsp;be&nbsp;a&nbsp;magic-wand&nbsp;expression&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;describing&nbsp;a&nbsp;data&nbsp;structure&nbsp;with&nbsp;a&nbsp;hole;&nbsp;&nbsp;the&nbsp;other&nbsp;conjuct<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;describes&nbsp;what&nbsp;goes&nbsp;in&nbsp;the&nbsp;hole.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)).<br/>
+* <span class="comment">(*&nbsp;Precondition&nbsp;implies&nbsp;loop&nbsp;invariant&nbsp;*)</span><br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+* <span class="comment">(*&nbsp;Loop&nbsp;test&nbsp;expression&nbsp;does&nbsp;not&nbsp;crash&nbsp;*)</span><br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+* <span class="comment">(*&nbsp;Loop&nbsp;body&nbsp;preserves&nbsp;loop&nbsp;invariant&nbsp;*)</span><br/>
+&nbsp;<span class="comment">(**&nbsp;As&nbsp;usual&nbsp;in&nbsp;a&nbsp;linked-list&nbsp;traversal,&nbsp;we&nbsp;want&nbsp;to&nbsp;dereference<br/>
+&nbsp;&nbsp;<span class="inlinecode"><span class="id" type="var">p</span>→<span class="id" type="var">key</span></span>&nbsp;but&nbsp;we&nbsp;don't&nbsp;have&nbsp;a&nbsp;<span class="inlinecode"><span class="id" type="var">data_at</span></span>&nbsp;conjunct&nbsp;for&nbsp;<span class="inlinecode"><span class="id" type="var">p</span></span>,&nbsp;we&nbsp;have<br/>
+&nbsp;&nbsp;only&nbsp;<span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span>.&nbsp;&nbsp;So&nbsp;we&nbsp;have&nbsp;to&nbsp;unfold&nbsp;the&nbsp;listrep;&nbsp;but&nbsp;this<br/>
+&nbsp;&nbsp;is&nbsp;useful&nbsp;only&nbsp;if&nbsp;we&nbsp;know&nbsp;that&nbsp;<span class="inlinecode"><span class="id" type="var">p</span>≠<span class="id" type="var">nil</span></span>.&nbsp;&nbsp;Therefore,&nbsp;case&nbsp;analysis:&nbsp;*)</span><br/>
+<span class="id" type="tactic">destruct</span> <span class="id" type="var">b</span> <span class="id" type="keyword">as</span> [ | [<span class="id" type="var">key</span> <span class="id" type="var">count</span>] <span class="id" type="var">al</span>].<br/>
+</div>
+
+<div class="doc">
+This case, where b=nil, is impossible, because (if you have the
+       right loop invariant) certain information in the SEP clause of
+       the precondition is inconsistent with <span class="inlinecode"><span class="id" type="var">HRE</span>:</span> <span class="inlinecode"><span class="id" type="var">isptr</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> above the
+       line.  To make use of propositional information in the SEP
+       clause, use assert_PROP: 
+</div>
+<div class="code code-tight">
+&nbsp;{<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">assert_PROP</span> <span class="id" type="var">False</span>. {<br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;}<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">contradiction</span>.<br/>
+&nbsp;}<br/>
+<span class="id" type="var">idtac</span>.<br/>
+</div>
+
+<div class="doc">
+The structure of the rest of this * bullet goes like this:
+
+<div class="paragraph"> </div>
+
+<ul class="doclist">
+<li> Massage the precondition and get through the forward_call to 
+    function <span class="inlinecode"><span class="id" type="var">strcmp</span></span>.
+
+</li>
+<li> Do  <span class="inlinecode"><span class="id" type="var">forward_if</span></span> <span class="inlinecode">(<span class="id" type="var">vret</span>≠<span class="id" type="var">Int.zero</span>)</span>.  The argument you pass to forward_if
+    can be a Prop, it does not need to be a full PROP/LOCAL/SEP, because:
+<ul class="doclist">
+<li> One branch of the if never reaches the join point, it returns; and
+
+</li>
+<li> The other branch of the if does not modify any local variables or
+        memory, so the LOCAL and SEP parts of the assertion will be 
+        unchanged.
+
+</li>
+</ul>
+
+</li>
+<li>
+<ul class="doclist">
+<li> Sub-bullet: then-clause.  
+       At some point in this proof, you'll need to <span class="inlinecode"><span class="id" type="var">thaw</span></span> <span class="inlinecode"><span class="id" type="var">FR<sub>1</sub></span></span>.
+       You'll need to use <span class="inlinecode"><span class="id" type="var">iter_sepcon_split3</span></span>.
+       Near the end of the then-clause, you'll have a goal similar
+       (perhaps not identical) to <span class="inlinecode"><span class="id" type="var">listrep_traverse_step_example</span></span>.
+
+</li>
+<li> Sub-bullet: else-clause.  Fairly short and straightforward proof.
+
+</li>
+<li> Sub-bullet: after the if; another proof goal similar
+     to <span class="inlinecode"><span class="id" type="var">listrep_traverse_step_example</span></span>.
+
+</li>
+</ul>
+
+</li>
+</ul>
+
+</div>
+<div class="code code-tight">
+
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+* <span class="comment">(*&nbsp;After&nbsp;the&nbsp;loop&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(**&nbsp;Here,&nbsp;you&nbsp;still&nbsp;have&nbsp;a&nbsp;data&nbsp;structure&nbsp;with&nbsp;a&nbsp;hole,&nbsp;represented&nbsp;by<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(A&nbsp;-*&nbsp;B),&nbsp;and&nbsp;the&nbsp;thing-in-the-hole,&nbsp;represented&nbsp;by&nbsp;A.&nbsp;&nbsp;This<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;similar&nbsp;to&nbsp;<span class="inlinecode"><span class="id" type="var">listrep_traverse_finish</span></span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab145"></a><h1 class="section">Proof of the <span class="inlinecode"><span class="id" type="var">incr_list</span></span> function</h1>
+
+<div class="paragraph"> </div>
+
+ Above, in the proof of the <span class="inlinecode"><span class="id" type="var">get</span></span> function, we traverse a linked
+   list without modifying it.  The loop invariant looked like,
+    <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> <span class="inlinecode">*</span> <span class="inlinecode">(<span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> <span class="inlinecode">-*</span> <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">b<sub>0</sub></span></span> <span class="inlinecode"><span class="id" type="var">p<sub>0</sub></span>)</span>.
+
+<div class="paragraph"> </div>
+
+  But the <span class="inlinecode"><span class="id" type="var">incr_list</span></span> function modifies a linked list, perhaps 
+  inserting a new element at the end.  Furthermore, the C program's
+  loop variable <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">**<span class="id" type="var">r</span></span> is a pointer to a pointer to a list
+  cell.  Our separation-logic description of this is <span class="inlinecode"><span class="id" type="var">listboxrep</span></span>.  
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Print</span> <span class="id" type="var">listboxrep</span>. <span class="comment">(*&nbsp;=&nbsp;fun&nbsp;(al&nbsp;:&nbsp;list&nbsp;(list&nbsp;byte&nbsp;*&nbsp;Z))&nbsp;(r&nbsp;:&nbsp;val)&nbsp;=&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EX&nbsp;p&nbsp;:&nbsp;val,&nbsp;data_at&nbsp;Ews&nbsp;(tptr&nbsp;tcell)&nbsp;p&nbsp;r&nbsp;*&nbsp;listrep&nbsp;al&nbsp;p&nbsp;&nbsp;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+That is, <span class="inlinecode"><span class="id" type="var">r</span></span> is a single-word box containing pointer <span class="inlinecode"><span class="id" type="var">p</span></span>,
+   and <span class="inlinecode"><span class="id" type="var">p</span></span> is a listrep.  Let's examine the loop that we want
+   to verify:
+<pre>
+void incr_list (struct cell **r<sub>0</sub>, char *s) {
+  struct cell *p, **r;
+  for(r=r<sub>0</sub>; ; r=&amp;p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>next) {
+    p = *r;
+    if (!p) { *r = new_cell(s,1,NULL); return; }
+    if (strcmp(p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>key, s)==0) {p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>count++; return;}
+} }
+</pre>
+  We will describe variable <span class="inlinecode"><span class="id" type="var">r</span></span> something like this:
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">PROP</span>()&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">temp</span>&nbsp;<span class="id" type="var">_r</span>&nbsp;<span class="id" type="var">r</span>)&nbsp;<span class="id" type="var">SEP</span>(<span class="id" type="var">data_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;(<span class="id" type="var">tptr</span>&nbsp;<span class="id" type="var">tcell</span>)&nbsp;<span class="id" type="var">q</span>&nbsp;<span class="id" type="var">r</span>).
+<div class="paragraph"> </div>
+
+</div>
+  That is, pointer to a single word containing <span class="inlinecode"><span class="id" type="var">q</span></span>.  But when
+  we do <span class="inlinecode"><span class="id" type="var">r</span></span> <span class="inlinecode">=</span> <span class="inlinecode">&amp;(<span class="id" type="var">p</span>→<span class="id" type="var">next</span>)</span> we will have <span class="inlinecode"><span class="id" type="var">r</span></span> pointing into the middle
+  of a <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> record, at the <span class="inlinecode"><span class="id" type="var">next</span></span> field.  To  describe that
+  single field all alone, we use <span class="inlinecode"><span class="id" type="var">unfold_data_at</span></span> to split
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">data_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;(<span class="id" type="var">x</span>,<span class="id" type="var">y</span>,<span class="id" type="var">q</span>)&nbsp;<span class="id" type="var">p</span>
+<div class="paragraph"> </div>
+
+</div>
+  into three separate conjuncts:
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">field_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;[<span class="id" type="var">StructField</span>&nbsp;<span class="id" type="var">_key</span>]&nbsp;<span class="id" type="var">x</span>&nbsp;<span class="id" type="var">p</span>&nbsp;*<br/>
+&nbsp;&nbsp;<span class="id" type="var">field_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;[<span class="id" type="var">StructField</span>&nbsp;<span class="id" type="var">_count</span>]&nbsp;<span class="id" type="var">y</span>&nbsp;<span class="id" type="var">p</span>&nbsp;*<br/>
+&nbsp;&nbsp;<span class="id" type="var">field_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;[<span class="id" type="var">StructField</span>&nbsp;<span class="id" type="var">_next</span>]&nbsp;<span class="id" type="var">q</span>&nbsp;<span class="id" type="var">p</span>
+<div class="paragraph"> </div>
+
+</div>
+  and then we must rewrite the third conjunct into
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">data_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;(<span class="id" type="var">tptr</span>&nbsp;<span class="id" type="var">tcell</span>)&nbsp;<span class="id" type="var">q</span>&nbsp;(<span class="id" type="var">field_address</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;[<span class="id" type="var">StructField</span>&nbsp;<span class="id" type="var">_next</span>]&nbsp;<span class="id" type="var">p</span>)
+<div class="paragraph"> </div>
+
+</div>
+  where the <span class="inlinecode">(<span class="id" type="var">field_address</span></span> <span class="inlinecode"><span class="id" type="var">_</span></span> <span class="inlinecode"><span class="id" type="var">_</span></span> <span class="inlinecode"><span class="id" type="var">_</span>)</span> is an "address arithmetic" expression
+  that describes the offset, in bytes, from <span class="inlinecode"><span class="id" type="var">p</span></span> to <span class="inlinecode">&amp;(<span class="id" type="var">p</span>→<span class="id" type="var">next</span>)</span>.
+
+<div class="paragraph"> </div>
+
+  The <span class="inlinecode"><span class="id" type="var">listboxrep_traverse</span></span> lemma illustrates the situation at
+  the end of the loop body.  Look at the left-hand side of the <span class="inlinecode">&#x22A2;-</span>
+  entailment.  Variable <span class="inlinecode"><span class="id" type="var">r</span></span> points to a single word containing <span class="inlinecode"><span class="id" type="var">p</span></span>
+  (it is perhaps the <span class="inlinecode"><span class="id" type="var">_next</span></span> field of the previous list cell).
+  Variable <span class="inlinecode"><span class="id" type="var">p</span></span> points to a split-up list cell, with fields 
+  <span class="inlinecode"><span class="id" type="var">_key</span></span> and <span class="inlinecode"><span class="id" type="var">_count</span></span>.  Where is the <span class="inlinecode"><span class="id" type="var">_next</span></span> field of <span class="inlinecode"><span class="id" type="var">p</span></span>?  We choose
+  not to describe it in this heaplet!
+
+<div class="paragraph"> </div>
+
+  The right-hand-side of this heaplet says, if you provide a heaplet
+  satisfying <span class="inlinecode"><span class="id" type="var">listboxrep</span></span> at address <span class="inlinecode">&amp;<span class="id" type="var">p</span>→<span class="id" type="var">next</span></span> representing the 
+  sequence <span class="inlinecode"><span class="id" type="var">dl</span></span>, then the combined heaplet satisfies <span class="inlinecode"><span class="id" type="var">listboxrep</span></span>
+  at address <span class="inlinecode"><span class="id" type="var">r</span></span> representing the sequence <span class="inlinecode">(<span class="id" type="var">key</span>,<span class="id" type="var">count</span>)::<span class="id" type="var">dl</span></span>.
+  Furthermore, this is true for <i>any</i> sequence <span class="inlinecode"><span class="id" type="var">dl</span></span>.  That provides
+  the freedom for the program to modify the contents of <span class="inlinecode"><span class="id" type="var">p</span>→<span class="id" type="var">next</span></span>,
+  or of any <span class="inlinecode"><span class="id" type="var">_next</span></span> field later in the sequence. 
+<div class="paragraph"> </div>
+
+<a name="lab146"></a><h4 class="section">Exercise: 3 stars, standard (listboxrep_traverse)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listboxrep_traverse</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span> <span class="id" type="var">kp</span> <span class="id" type="var">key</span> <span class="id" type="var">count</span> <span class="id" type="var">r</span>, <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">key</span> <span class="id" type="var">kp</span> * <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tarray</span> <span class="id" type="var">tschar</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">key</span> + 1)) <span class="id" type="var">kp</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_key</span>] <span class="id" type="var">kp</span> <span class="id" type="var">p</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_count</span>] (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> <span class="id" type="var">count</span>)) <span class="id" type="var">p</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> <span class="id" type="var">p</span> *<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">p</span> <span class="id" type="var">r</span> <br/>
+&nbsp;&nbsp;&nbsp;&#x22A2;- <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">ALL</span> <span class="id" type="var">dl</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>), <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listboxrep</span> <span class="id" type="var">dl</span> (<span class="id" type="var">field_address</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">p</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-* <span class="id" type="var">listboxrep</span> ((<span class="id" type="var">key</span>, <span class="id" type="var">count</span>) :: <span class="id" type="var">dl</span>) <span class="id" type="var">r</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">allp_right</span>; <span class="id" type="tactic">intro</span> <span class="id" type="var">dl</span>.<br/>
+&nbsp;<span class="id" type="tactic">apply</span> → <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+</div>
+
+<div class="doc">
+Sometime during the proof below, you will have
+       <span class="inlinecode"><span class="id" type="var">data_at</span></span> <span class="inlinecode"><span class="id" type="var">Ews</span></span> <span class="inlinecode"><span class="id" type="var">tcell</span></span> <span class="inlinecode">...</span> <span class="inlinecode"><span class="id" type="var">p</span></span>
+     that you want to expand into 
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;[<span class="id" type="var">StructField</span>&nbsp;<span class="id" type="var">_key</span>]&nbsp;... <span class="id" type="var">p</span>&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;<span class="id" type="var">field_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;[<span class="id" type="var">StructField</span>&nbsp;<span class="id" type="var">_count</span>]&nbsp;... <span class="id" type="var">p</span>&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;<span class="id" type="var">field_at</span>&nbsp;<span class="id" type="var">Ews</span>&nbsp;<span class="id" type="var">tcell</span>&nbsp;[<span class="id" type="var">StructField</span>&nbsp;<span class="id" type="var">_next</span>]&nbsp;... <span class="id" type="var">p</span>].
+<div class="paragraph"> </div>
+
+</div>
+   You can do this with <span class="inlinecode"><span class="id" type="var">unfold_data_at</span></span> <span class="inlinecode">(<span class="id" type="tactic">pattern</span>)</span> where <span class="inlinecode"><span class="id" type="tactic">pattern</span></span> is 
+   something like <span class="inlinecode">(<span class="id" type="var">data_at</span></span> <span class="inlinecode"><span class="id" type="var">_</span></span> <span class="inlinecode"><span class="id" type="var">_</span></span> <span class="inlinecode"><span class="id" type="var">_</span></span> <span class="inlinecode"><span class="id" type="var">p</span>)</span> indicating which SEP conjunct
+   you want to expand.
+
+<div class="paragraph"> </div>
+
+   After that, you will want to rewrite by <span class="inlinecode"><span class="id" type="var">field_at_data_at</span></span> ... 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Check</span> (<span class="id" type="var">field_at_data_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>]). <span class="comment">(*&nbsp;=<br/>
+&nbsp;&nbsp;forall&nbsp;v&nbsp;p,&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;field_at&nbsp;Ews&nbsp;tcell&nbsp;<span class="inlinecode"><span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_next</span></span>&nbsp;v&nbsp;p&nbsp;=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data_at&nbsp;Ews&nbsp;(nested_field_type&nbsp;tcell&nbsp;<span class="inlinecode"><span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_next</span></span>)&nbsp;v<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(field_address&nbsp;tcell&nbsp;<span class="inlinecode"><span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_next</span></span>&nbsp;p).&nbsp;*)</span><br/>
+<span class="id" type="keyword">Eval</span> <span class="id" type="tactic">simpl</span> <span class="id" type="keyword">in</span> (<span class="id" type="var">nested_field_type</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>]).<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;=&nbsp;tptr&nbsp;(Tstruct&nbsp;_cell&nbsp;noattr)&nbsp;*)</span><br/><hr class='doublespaceincode'/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab147"></a><h4 class="section">Exercise: 4 stars, standard (body_incr_list)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_incr_list</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_incr_list</span> <span class="id" type="var">incr_list_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+This proof uses "magic wand as frame" to traverse <i>and update</i> a
+   (linked list) data structure.  This pattern is a bit more complex
+   than the wand-as-frame pattern used in body_get, which did not
+   update the data structure.  You will still use
+   "data-structure-with-a-hole" and "what-is-in-the-hole"; but now the
+   "data-structure-with-a-hole" must be able to accept the <i>future</i>
+   hole-filler, not the one that is in the hole right now.
+
+<div class="paragraph"> </div>
+
+  The key lemmas to use are, <span class="inlinecode"><span class="id" type="var">wand_refl_cancel_right</span></span>,
+   <span class="inlinecode"><span class="id" type="var">wand_frame_elim'</span></span>, and <span class="inlinecode"><span class="id" type="var">wand_frame_ver</span></span>.  When using
+   <span class="inlinecode"><span class="id" type="var">wand_frame_ver</span></span>, you will find <span class="inlinecode"><span class="id" type="var">listboxrep_traverse</span></span> to be useful.
+   
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab148"></a><h1 class="section">field_compatible</h1>
+
+<div class="paragraph"> </div>
+
+ Let's discuss how to address individual fields of structs, or
+   individual slots of arrays. 
+<div class="paragraph"> </div>
+
+ First, <span class="inlinecode"><span class="id" type="var">data_at</span></span> <span class="inlinecode"><span class="id" type="var">sh</span></span> <span class="inlinecode">(<span class="id" type="var">Tstruct</span></span> <span class="inlinecode"><span class="id" type="var">_</span></span> <span class="inlinecode"><span class="id" type="var">_</span>)</span> is equivalent to the
+  conjunction of individual <span class="inlinecode"><span class="id" type="var">field_at</span></span> predicates for each
+  of the fields.  (Something similar holds for arrays.) 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">example_split_struct</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span> (<span class="id" type="var">x</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span>: <span class="id" type="var">val</span>), <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> (<span class="id" type="var">x</span>,(<span class="id" type="var">y</span>,<span class="id" type="var">z</span>)) <span class="id" type="var">p</span><br/>
+&nbsp;&nbsp;&nbsp;=   <span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_key</span>] <span class="id" type="var">x</span> <span class="id" type="var">p</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_count</span>] <span class="id" type="var">y</span> <span class="id" type="var">p</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* <span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">z</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+<span class="id" type="var">unfold_data_at</span> (<span class="id" type="var">data_at</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">p</span>).<br/>
+<span class="id" type="tactic">rewrite</span> <span class="id" type="var">sepcon_assoc</span>.<br/>
+<span class="id" type="tactic">reflexivity</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Second, <span class="inlinecode"><span class="id" type="var">field_at</span></span> <span class="inlinecode"><span class="id" type="var">sh</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">gfs</span></span> <span class="inlinecode"><span class="id" type="var">z</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> is equivalent to
+   <span class="inlinecode"><span class="id" type="var">data_at</span></span> <span class="inlinecode"><span class="id" type="var">sh</span></span> <span class="inlinecode">(<span class="id" type="var">tptr</span></span> <span class="inlinecode"><span class="id" type="var">t</span>)</span> <span class="inlinecode"><span class="id" type="var">z</span></span> <span class="inlinecode">(<span class="id" type="var">field_address</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">gfs</span></span> <span class="inlinecode"><span class="id" type="var">p</span>)</span>,
+  that is, <span class="inlinecode"><span class="id" type="var">field_address</span></span> is a way to describe
+  the offset (in bytes) from the base of a struct
+  to the address of a field of that struct
+  (or similarly to an element of an array). 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">example_field_at_data_at</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span> (<span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">z</span> <span class="id" type="var">p</span> =<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">z</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">field_address</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">p</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">field_at_data_at</span>.<br/>
+&nbsp;<span class="id" type="tactic">reflexivity</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+The <span class="inlinecode"><span class="id" type="var">_next</span></span> field of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> is the 
+  third field, after two integer fields.  If there is
+  no padding between those fields (which is the case here),
+  then the distance from the base of the struct to the
+  base of the <span class="inlinecode"><span class="id" type="var">_next</span></span> field should be <span class="inlinecode">2*<span class="id" type="var">sizeof</span>(<span class="id" type="var">tint</span>)</span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">example_field_at_data_at'</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span> (<span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">z</span> <span class="id" type="var">p</span> &#x22A2;-<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">z</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">offset_val</span> (2 * <span class="id" type="var">sizeof</span> <span class="id" type="var">tint</span>) <span class="id" type="var">p</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">field_at_data_at</span>.<br/>
+&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">field_address</span>.<br/>
+&nbsp;<span class="id" type="var">if_tac</span>; <span class="id" type="tactic">simpl</span>; <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;<span class="id" type="var">cancel</span>.<br/>
+&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+&nbsp;<span class="id" type="tactic">destruct</span> <span class="id" type="var">H<sub>0</sub></span> <span class="id" type="keyword">as</span> [<span class="id" type="var">H<sub>0</sub></span> <span class="id" type="var">_</span>].<br/>
+&nbsp;<span class="id" type="var">contradiction</span> <span class="id" type="var">H<sub>0</sub></span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+But the converse does not hold: 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">example_field_at_data_at''</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span> (<span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">z</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">offset_val</span> (2 * <span class="id" type="var">sizeof</span> <span class="id" type="var">tint</span>) <span class="id" type="var">p</span>)<br/>
+&nbsp;&#x22A2;- <span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">z</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">field_at_data_at</span>.<br/>
+&nbsp;<span class="id" type="tactic">simpl</span>.<br/>
+&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">field_address</span>.<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">if_true</span>.<br/>
+&nbsp;<span class="id" type="tactic">simpl</span>.<br/>
+&nbsp;<span class="id" type="var">cancel</span>.<br/>
+&nbsp;<span class="comment">(*&nbsp;Not&nbsp;provable!&nbsp;*)</span><br/>
+<span class="id" type="keyword">Abort</span>.<br/>
+</div>
+
+<div class="doc">
+If we assume an extra premise, we can prove this, however: 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">example_field_at_data_at'''</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">p</span> (<span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">field_compatible</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">p</span> →<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">z</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">offset_val</span> (2 * <span class="id" type="var">sizeof</span> <span class="id" type="var">tint</span>) <span class="id" type="var">p</span>)<br/>
+&nbsp;&#x22A2;- <span class="id" type="var">field_at</span> <span class="id" type="var">Ews</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_next</span>] <span class="id" type="var">z</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">field_at_data_at</span>.<br/>
+&nbsp;<span class="id" type="tactic">simpl</span>.<br/>
+&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">field_address</span>.<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">if_true</span> <span class="id" type="tactic">by</span> <span class="id" type="tactic">assumption</span>.<br/>
+&nbsp;<span class="id" type="tactic">simpl</span>.<br/>
+&nbsp;<span class="id" type="var">cancel</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Why is that?  The answer is in the definition of
+  <span class="inlinecode"><span class="id" type="var">field_address</span></span>: 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Print</span> <span class="id" type="var">field_address</span>. <span class="comment">(*&nbsp;=&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;fun&nbsp;{cs&nbsp;:&nbsp;compspecs}&nbsp;(t&nbsp;:&nbsp;type)&nbsp;(gfs&nbsp;:&nbsp;list&nbsp;gfield)&nbsp;(p&nbsp;:&nbsp;val)&nbsp;=&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;field_compatible_dec&nbsp;t&nbsp;gfs&nbsp;p&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;then&nbsp;offset_val&nbsp;(nested_field_offset&nbsp;t&nbsp;gfs)&nbsp;p&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;Vundef&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+This says, if <span class="inlinecode"><span class="id" type="var">field_compatible</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">gfs</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> then the address
+   of the field is (for example) <span class="inlinecode"><span class="id" type="var">offset_val</span></span> <span class="inlinecode">(2</span> <span class="inlinecode">*</span> <span class="inlinecode"><span class="id" type="var">sizeof</span></span> <span class="inlinecode"><span class="id" type="var">tint</span>)</span> <span class="inlinecode"><span class="id" type="var">p</span></span>,
+   but if <span class="inlinecode">¬</span> <span class="inlinecode"><span class="id" type="var">field_compatible</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">gfs</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> then the address is <span class="inlinecode"><span class="id" type="var">Vundef</span></span>.
+   That is, <span class="inlinecode"><span class="id" type="var">field_address</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">gfs</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> is defined only if the address <span class="inlinecode"><span class="id" type="var">p</span></span>
+   is compatible with <span class="inlinecode"><span class="id" type="var">t</span></span> and <span class="inlinecode"><span class="id" type="var">gfs</span></span>.  What is <span class="inlinecode"><span class="id" type="var">field_compatible</span></span> ? 
+
+<div class="paragraph"> </div>
+
+   Let <span class="inlinecode"><span class="id" type="var">p</span></span> be a address, and let <span class="inlinecode"><span class="id" type="var">t</span></span> be a C-language type.
+   We might ask, is it legal to put an object of type <span class="inlinecode"><span class="id" type="var">t</span></span>
+   at address <span class="inlinecode"><span class="id" type="var">p</span></span>?  Not always!  We require all these conditions:
+
+<div class="paragraph"> </div>
+
+<ul class="doclist">
+<li> <span class="inlinecode"><span class="id" type="var">isptr</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span>:  <span class="inlinecode"><span class="id" type="var">p</span></span> must be a pointer value (Vptr), not an 
+        integer or undefined.
+
+</li>
+<li> <span class="inlinecode"><span class="id" type="var">complete_legal_cosu_type</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">true</span></span>:
+       <span class="inlinecode"><span class="id" type="var">t</span></span> must be complete, e.g., if <span class="inlinecode"><span class="id" type="var">typedef</span></span> <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">foo</span></span> <span class="inlinecode">*<span class="id" type="var">t</span></span>
+        then there must be a definition for <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">foo</span></span>.
+
+</li>
+<li> <span class="inlinecode"><span class="id" type="var">size_compatible</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span>: there must be at least <span class="inlinecode"><span class="id" type="var">sizeof</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span>
+       bytes before the maximum-possible address. 
+
+</li>
+<li> <span class="inlinecode"><span class="id" type="var">align_compatible</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span>:  p must be an appropriate multiple
+       of 2, of 4, or of 8 as necessary, so that each subfield of
+       type <span class="inlinecode"><span class="id" type="var">t</span></span> is appropriately aligned as required by the
+       data type of that subfield.
+
+</li>
+<li> <span class="inlinecode"><span class="id" type="var">legal_nested_field</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">gfs</span></span>:  If we ask, "is it legal to put
+       an object of type <span class="inlinecode"><span class="id" type="var">t</span></span> with field-path <span class="inlinecode"><span class="id" type="var">gfs</span></span> at address <span class="inlinecode"><span class="id" type="var">p</span></span>?"
+       then we must also know that <span class="inlinecode"><span class="id" type="var">gfs</span></span> is a possible field-path
+       in type <span class="inlinecode"><span class="id" type="var">t</span></span>.  For example, <span class="inlinecode"><span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_count</span></span> is a possible field-path
+       for type <span class="inlinecode"><span class="id" type="var">tcell</span></span>, but <span class="inlinecode"><span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_s</span></span> is not&mdash; there's
+       no such field.
+
+<div class="paragraph"> </div>
+
+    We encapsulate all these properties of <span class="inlinecode"><span class="id" type="var">t</span>,</span> <span class="inlinecode"><span class="id" type="var">p</span>,</span> <span class="inlinecode"><span class="id" type="var">gfs</span></span> in 
+    the predicate <span class="inlinecode"><span class="id" type="var">field_compatible</span></span>: 
+</li>
+</ul>
+
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Print</span> <span class="id" type="var">field_compatible</span>. <span class="comment">(*&nbsp;=&nbsp;<br/>
+&nbsp;&nbsp;fun&nbsp;{cs&nbsp;:&nbsp;compspecs}&nbsp;(t&nbsp;:&nbsp;type)&nbsp;(gfs&nbsp;:&nbsp;list&nbsp;gfield)&nbsp;(p&nbsp;:&nbsp;val)&nbsp;=&gt;<br/>
+&nbsp;&nbsp;isptr&nbsp;p&nbsp;/\<br/>
+&nbsp;&nbsp;complete_legal_cosu_type&nbsp;t&nbsp;=&nbsp;true&nbsp;/\<br/>
+&nbsp;&nbsp;size_compatible&nbsp;t&nbsp;p&nbsp;/\<br/>
+&nbsp;&nbsp;align_compatible&nbsp;t&nbsp;p&nbsp;/\<br/>
+&nbsp;&nbsp;legal_nested_field&nbsp;t&nbsp;gfs&nbsp;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+<span class="inlinecode"><span class="id" type="var">_count</span></span> is a field of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (<span class="id" type="var">legal_nested_field</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_count</span>]).<br/>
+<span class="id" type="tactic">compute</span>; <span class="id" type="tactic">auto</span> 10.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+<span class="inlinecode"><span class="id" type="var">_s</span></span> is not a field of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (¬<span class="id" type="var">legal_nested_field</span> <span class="id" type="var">tcell</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_s</span>]).<br/>
+<span class="id" type="tactic">compute</span>. <span class="id" type="tactic">intuition</span> <span class="id" type="tactic">congruence</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+0 is a legal subscript of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">*<span class="id" type="var">a</span>[109]</span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (<span class="id" type="var">legal_nested_field</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) 109) [<span class="id" type="var">ArraySubsc</span> 0]).<br/>
+<span class="id" type="tactic">compute</span>. <span class="id" type="tactic">intuition</span> <span class="id" type="tactic">congruence</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+108 is a legal subscript of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">*<span class="id" type="var">a</span>[109]</span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (<span class="id" type="var">legal_nested_field</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) 109) [<span class="id" type="var">ArraySubsc</span> 108]).<br/>
+<span class="id" type="tactic">compute</span>. <span class="id" type="tactic">intuition</span> <span class="id" type="tactic">congruence</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+109 is not a legal subscript of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">*<span class="id" type="var">a</span>[109]</span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (¬<span class="id" type="var">legal_nested_field</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) 109) [<span class="id" type="var">ArraySubsc</span> 109]).<br/>
+<span class="id" type="tactic">compute</span>. <span class="id" type="tactic">intuition</span> <span class="id" type="tactic">congruence</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Sometimes in the C language we want a pointer <i>just at
+    the end</i> of an array.  That is, given <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">*<span class="id" type="var">a</span>[109]</span>
+    we want the pointer value <span class="inlinecode"></span> <span class="inlinecode">&amp;<span class="id" type="var">a</span>[109]</span> <span class="inlinecode"></span>.  This is legal,
+    even though this slot of the array does not exist.
+
+<div class="paragraph"> </div>
+
+    For this we want a variant of <span class="inlinecode"><span class="id" type="var">legal_nested_field</span></span> that
+    permits "just at the end": 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Check</span> <span class="id" type="var">legal_nested_field0</span>. <span class="comment">(*&nbsp;:&nbsp;type&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;list&nbsp;gfield&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;Prop&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+108 is an an addressible subscript of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">*<span class="id" type="var">a</span>[109]</span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (<span class="id" type="var">legal_nested_field0</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) 109) [<span class="id" type="var">ArraySubsc</span> 108]).<br/>
+<span class="id" type="tactic">compute</span>. <span class="id" type="tactic">intuition</span> <span class="id" type="tactic">congruence</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+109 is an an addressible subscript of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">*<span class="id" type="var">a</span>[109]</span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (<span class="id" type="var">legal_nested_field0</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) 109) [<span class="id" type="var">ArraySubsc</span> 109]).<br/>
+<span class="id" type="tactic">compute</span>. <span class="id" type="tactic">intuition</span> <span class="id" type="tactic">congruence</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+110 is not an addressible subscript of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">cell</span></span> <span class="inlinecode">*<span class="id" type="var">a</span>[109]</span> 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Goal</span> (¬<span class="id" type="var">legal_nested_field</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) 109) [<span class="id" type="var">ArraySubsc</span> 110]).<br/>
+<span class="id" type="tactic">compute</span>. <span class="id" type="tactic">intuition</span> <span class="id" type="tactic">congruence</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Based on these two notions, 
+
+<div class="paragraph"> </div>
+
+<ul class="doclist">
+<li> <span class="inlinecode"><span class="id" type="var">legal_nested_field</span></span> (loadable/storable field) and
+
+</li>
+<li> <span class="inlinecode"><span class="id" type="var">legal_nested_field0</span></span> (addressible field),
+
+</li>
+</ul>
+  we have, respectively <span class="inlinecode"><span class="id" type="var">field_compatible</span></span> and <span class="inlinecode"><span class="id" type="var">field_compatible0</span></span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Print</span> <span class="id" type="var">field_compatible0</span>. <span class="comment">(*&nbsp;=&nbsp;<br/>
+&nbsp;&nbsp;fun&nbsp;{cs&nbsp;:&nbsp;compspecs}&nbsp;(t&nbsp;:&nbsp;type)&nbsp;(gfs&nbsp;:&nbsp;list&nbsp;gfield)&nbsp;(p&nbsp;:&nbsp;val)&nbsp;=&gt;<br/>
+&nbsp;&nbsp;isptr&nbsp;p&nbsp;/\<br/>
+&nbsp;&nbsp;complete_legal_cosu_type&nbsp;t&nbsp;=&nbsp;true&nbsp;/\<br/>
+&nbsp;&nbsp;size_compatible&nbsp;t&nbsp;p&nbsp;/\<br/>
+&nbsp;&nbsp;align_compatible&nbsp;t&nbsp;p&nbsp;/\<br/>
+&nbsp;&nbsp;legal_nested_field0&nbsp;t&nbsp;gfs&nbsp;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+<a name="lab149"></a><h2 class="section">Where does field_compatible come from?</h2>
+
+<div class="paragraph"> </div>
+
+ Let's look again at this lemma: 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Check</span> <span class="id" type="var">example_field_at_data_at'''</span>. <span class="comment">(*&nbsp;:&nbsp;forall&nbsp;p&nbsp;(z:&nbsp;val),<br/>
+&nbsp;&nbsp;field_compatible&nbsp;tcell&nbsp;<span class="inlinecode"><span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_next</span></span>&nbsp;p&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span><br/>
+&nbsp;&nbsp;&nbsp;data_at&nbsp;Ews&nbsp;(tptr&nbsp;tcell)&nbsp;z&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(offset_val&nbsp;(2&nbsp;*&nbsp;sizeof&nbsp;tint)&nbsp;p)<br/>
+&nbsp;&#x22A2;-&nbsp;field_at&nbsp;Ews&nbsp;tcell&nbsp;<span class="inlinecode"><span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_next</span></span>&nbsp;z&nbsp;p.&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+We can apply this lemma if <span class="inlinecode"><span class="id" type="var">field_compatible</span>...</span> is above the line.
+  How can we get that hypothesis above the line?
+  Often the <span class="inlinecode"><span class="id" type="var">entailer</span></span> or <span class="inlinecode"><span class="id" type="var">entailer</span>!</span> does this automatically,
+  deriving it from <span class="inlinecode"><span class="id" type="var">data_at</span></span> or <span class="inlinecode"><span class="id" type="var">field_at</span></span> facts in the SEP clause
+  of your left-hand side. 
+<div class="paragraph"> </div>
+
+<a name="lab150"></a><h1 class="section">Proof of the <span class="inlinecode"><span class="id" type="var">incr</span></span> function</h1>
+
+<div class="paragraph"> </div>
+
+
+<div class="paragraph"> </div>
+
+<pre>
+  void incr_list (struct cell **r<sub>0</sub>, char *s);
+
+  void incr (struct hashtable *table, char *s) {
+    unsigned int h = hash(s);
+    unsigned int b = h % N;
+    incr_list (&amp; table<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>buckets[b], s);
+  }
+</pre>
+  The difficult part here is the function-argument, <span class="inlinecode"></span> <span class="inlinecode">&amp;</span> <span class="inlinecode"><span class="id" type="var">table</span>→<span class="id" type="var">buckets</span>[<span class="id" type="var">b</span>]</span> <span class="inlinecode"></span>.
+  The precondition of the <span class="inlinecode"><span class="id" type="var">incr_list</span></span> function requires just a single
+  pointer-to-pointer-to-cell, but we have an entire array of 109
+  pointers-to-cell.  
+
+<div class="paragraph"> </div>
+
+  We start with <span class="inlinecode"><span class="id" type="var">table</span></span>, a pointer to a struct containing one
+  field that's an array of 109 elements.  For calling <span class="inlinecode"><span class="id" type="var">incr_list</span></span>,
+  we need to split that into two separate data structures:
+
+<div class="paragraph"> </div>
+
+<ul class="doclist">
+<li> the single-element array at <span class="inlinecode"><span class="id" type="var">table</span>→<span class="id" type="var">buckets</span>+<span class="id" type="var">b</span></span>
+
+</li>
+<li> all the rest of the data structure, including the other fields
+    of <span class="inlinecode"><span class="id" type="keyword">struct</span></span> <span class="inlinecode"><span class="id" type="var">hashtable</span></span> (if there were any) and the
+    elements <span class="inlinecode">0..<span class="id" type="var">b</span>-1</span> and <span class="inlinecode"><span class="id" type="var">b</span>+1..108</span> of the array.
+
+</li>
+</ul>
+  The <span class="inlinecode"><span class="id" type="var">wand_slice_array</span></span> lemma can do this:  
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Check</span> <span class="id" type="var">wand_slice_array</span>.<br/>
+<span class="comment">(*&nbsp;&nbsp;:&nbsp;forall&nbsp;(lo&nbsp;hi&nbsp;n&nbsp;:&nbsp;Z)&nbsp;(t&nbsp;:&nbsp;type)&nbsp;(sh&nbsp;:&nbsp;Share.t)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(al&nbsp;:&nbsp;list&nbsp;(reptype&nbsp;t))&nbsp;(p&nbsp;:&nbsp;val),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&lt;=&nbsp;lo&nbsp;&lt;=&nbsp;hi&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hi&nbsp;&lt;=&nbsp;n&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Zlength&nbsp;al&nbsp;=&nbsp;n&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data_at&nbsp;sh&nbsp;(tarray&nbsp;t&nbsp;n)&nbsp;al&nbsp;p&nbsp;=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!!&nbsp;field_compatible&nbsp;(tarray&nbsp;t&nbsp;n)&nbsp;<span class="inlinecode"></span>&nbsp;p&nbsp;&amp;&amp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data_at&nbsp;sh&nbsp;(tarray&nbsp;t&nbsp;(hi&nbsp;-&nbsp;lo))&nbsp;(sublist&nbsp;lo&nbsp;hi&nbsp;al)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(field_address0&nbsp;(tarray&nbsp;t&nbsp;n)&nbsp;<span class="inlinecode"><span class="id" type="var">ArraySubsc</span></span> <span class="inlinecode"><span class="id" type="var">lo</span></span>&nbsp;p)&nbsp;*<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;array_with_hole&nbsp;sh&nbsp;t&nbsp;lo&nbsp;hi&nbsp;n&nbsp;al&nbsp;p.<br/>
+*)</span><br/>
+</div>
+
+<div class="doc">
+Here (array_with_hole sh t lo hi n al p) means 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Print</span> <span class="id" type="var">array_with_hole</span>.<br/>
+<span class="comment">(*&nbsp;&nbsp;:&nbsp;!!&nbsp;field_compatible&nbsp;(tarray&nbsp;t&nbsp;n)&nbsp;<span class="inlinecode"></span>&nbsp;p&nbsp;&amp;&amp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(ALL&nbsp;cl&nbsp;:&nbsp;list&nbsp;(reptype&nbsp;t)&nbsp;,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data_at&nbsp;sh&nbsp;(tarray&nbsp;t&nbsp;(hi&nbsp;-&nbsp;lo))&nbsp;cl<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(field_address0&nbsp;(tarray&nbsp;t&nbsp;n)&nbsp;<span class="inlinecode"><span class="id" type="var">ArraySubsc</span></span> <span class="inlinecode"><span class="id" type="var">lo</span></span>&nbsp;p)&nbsp;-*<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data_at&nbsp;sh&nbsp;(tarray&nbsp;t&nbsp;n)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(sublist&nbsp;0&nbsp;lo&nbsp;al'&nbsp;++&nbsp;cl&nbsp;++&nbsp;sublist&nbsp;hi&nbsp;n&nbsp;al')&nbsp;p)<br/>
+*)</span><br/>
+</div>
+
+<div class="doc">
+This says that <span class="inlinecode"><span class="id" type="var">data_at</span></span> <span class="inlinecode"><span class="id" type="var">sh</span></span> <span class="inlinecode">(<span class="id" type="var">tarray</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">n</span>)</span> <span class="inlinecode"><span class="id" type="var">al</span></span> <span class="inlinecode"><span class="id" type="var">p</span></span> can be split
+   up into two pieces: 
+
+<div class="paragraph"> </div>
+
+<ul class="doclist">
+<li> 1. the slice from index <span class="inlinecode"><span class="id" type="var">lo</span></span> to index <span class="inlinecode"><span class="id" type="var">hi</span>-1</span>,
+
+</li>
+<li> 2. everything else.   
+</li>
+</ul>
+
+<div class="paragraph"> </div>
+
+ Later in the proof of <span class="inlinecode"><span class="id" type="var">body_incr</span></span>, you need to handle 
+    the function-argument, <span class="inlinecode"></span> <span class="inlinecode">&amp;</span> <span class="inlinecode">(<span class="id" type="var">table</span>→<span class="id" type="var">buckets</span>[<span class="id" type="var">b</span>])</span> <span class="inlinecode"></span>,
+    where variable <span class="inlinecode"><span class="id" type="var">_b</span></span> has the value <span class="inlinecode"><span class="id" type="var">h</span></span>.
+    CompCert will calculate this as <span class="inlinecode"><span class="id" type="var">table</span></span> <span class="inlinecode">+</span> <span class="inlinecode">(<span class="id" type="var">sizeof</span></span> <span class="inlinecode"><span class="id" type="var">int</span>)*<span class="id" type="var">h</span></span>,
+    which is to say,
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">offset_val</span>&nbsp;(<span class="id" type="var">sizeof</span>&nbsp;(<span class="id" type="var">tptr</span>&nbsp;<span class="id" type="var">tcell</span>)&nbsp;*&nbsp;<span class="id" type="var">h</span>)&nbsp;<span class="id" type="var">table</span>
+<div class="paragraph"> </div>
+
+</div>
+   But we want to express that as 
+<span class="inlinecode">[</span>  
+   <span class="inlinecode"><span class="id" type="var">field_address0</span></span> <span class="inlinecode">(<span class="id" type="var">tarray</span></span> <span class="inlinecode">(<span class="id" type="var">tptr</span></span> <span class="inlinecode"><span class="id" type="var">tcell</span>)</span> <span class="inlinecode"><span class="id" type="var">N</span>)</span> <span class="inlinecode">[<span class="id" type="var">ArraySubsc</span></span> <span class="inlinecode"><span class="id" type="var">h</span>]</span>
+      <span class="inlinecode">(<span class="id" type="var">field_address</span></span> <span class="inlinecode"><span class="id" type="var">thashtable</span></span> <span class="inlinecode">[<span class="id" type="var">StructField</span></span> <span class="inlinecode"><span class="id" type="var">_buckets</span>]</span> <span class="inlinecode"><span class="id" type="var">table</span>).</span>
+<span class="inlinecode">]</span>
+   As discussed above in the <span class="inlinecode"><span class="id" type="var">field_compatible</span></span> section,
+   to prove a field_address one must know that the address <span class="inlinecode"><span class="id" type="var">table</span></span>
+   is field-compatible with <span class="inlinecode"><span class="id" type="var">thashtable</span></span>, and that the address
+   <span class="inlinecode"><span class="id" type="var">table</span>→<span class="id" type="var">buckets</span></span> is field-compatible with the <span class="inlinecode"><span class="id" type="var">ArraySubsc</span></span> <span class="inlinecode"><span class="id" type="var">h</span></span>
+   field.  That's all proved in the following lemma: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_incr_field_address_lemma</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">table</span>: <span class="id" type="var">val</span>) (<span class="id" type="var">h</span> : <span class="id" type="var">Z</span>),<br/>
+&nbsp;&nbsp;0 ≤ <span class="id" type="var">h</span> &lt; <span class="id" type="var">N</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">field_compatible</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">N</span>) []<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">field_address</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>] <span class="id" type="var">table</span>) →<br/>
+&nbsp;&nbsp;<span class="id" type="var">field_compatible</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) []<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">field_address0</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">N</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[<span class="id" type="var">ArraySubsc</span> <span class="id" type="var">h</span>]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">field_address</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>] <span class="id" type="var">table</span>)) →<br/>
+&nbsp;&nbsp;<span class="id" type="var">offset_val</span> (<span class="id" type="var">sizeof</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) * <span class="id" type="var">h</span>) <span class="id" type="var">table</span> =<br/>
+&nbsp;&nbsp;<span class="id" type="var">field_address0</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">N</span>) [<span class="id" type="var">ArraySubsc</span> <span class="id" type="var">h</span>]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">field_address</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>] <span class="id" type="var">table</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+</div>
+
+<div class="doc">
+The Hint database allows <span class="inlinecode"><span class="id" type="tactic">auto</span></span> <span class="inlinecode"><span class="id" type="keyword">with</span></span> <span class="inlinecode"><span class="id" type="var">field_compatible</span></span>
+   to make use of the <span class="inlinecode"><span class="id" type="var">field_compatible</span></span> facts above the line. 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">field_address0_offset</span> <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span> <span class="id" type="keyword">with</span> <span class="id" type="var">field_compatible</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">field_address_offset</span> <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span> <span class="id" type="keyword">with</span> <span class="id" type="var">field_compatible</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">autorewrite</span> <span class="id" type="keyword">with</span> <span class="id" type="var">norm</span>. <span class="id" type="tactic">auto</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab151"></a><h4 class="section">Exercise: 4 stars, standard (body_incr)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_incr</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_incr</span> <span class="id" type="var">incr_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="tactic">rename</span> <span class="id" type="var">p</span> <span class="id" type="var">into</span> <span class="id" type="var">table</span>.<br/>
+<span class="id" type="tactic">rename</span> <span class="id" type="var">H</span> <span class="id" type="var">into</span> <span class="id" type="var">Hmax</span>.<br/>
+<span class="id" type="var">assert_PROP</span> (<span class="id" type="var">isptr</span> <span class="id" type="var">table</span>) <span class="id" type="keyword">as</span> <span class="id" type="var">Htable</span> <span class="id" type="tactic">by</span> <span class="id" type="var">entailer</span>!.<br/>
+</div>
+
+<div class="doc">
+The next two lines would not be part of an ordinary Verifiable C
+   proof, they are here only to guide you through the bigger proof. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">match</span> <span class="id" type="var">goal</span> <span class="id" type="keyword">with</span> &#x22A2; <span class="id" type="var">semax</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> (<span class="id" type="var">Ssequence</span> (<span class="id" type="var">Ssequence</span> ?<span class="id" type="var">c<sub>1</sub></span> (<span class="id" type="var">Ssequence</span> ?<span class="id" type="var">c<sub>2</sub></span> ?<span class="id" type="var">c<sub>3</sub></span>)) ?<span class="id" type="var">c<sub>4</sub></span>) <span class="id" type="var">_</span> ⇒ <span class="id" type="tactic">apply</span> (<span class="id" type="var">semax_unfold_seq</span> (<span class="id" type="var">Ssequence</span> (<span class="id" type="var">Ssequence</span> <span class="id" type="var">c<sub>1</sub></span> <span class="id" type="var">c<sub>2</sub></span>) (<span class="id" type="var">Ssequence</span> <span class="id" type="var">c<sub>3</sub></span> <span class="id" type="var">c<sub>4</sub></span>))); [ <span class="id" type="tactic">reflexivity</span> | ] <span class="id" type="keyword">end</span>;<br/>
+<span class="id" type="var">pose</span> (<span class="id" type="var">j</span> := <span class="id" type="var">EX</span> <span class="id" type="var">cts</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>) * <span class="id" type="var">val</span>), <span class="id" type="var">PROP</span> (<span class="id" type="var">contents</span> = <span class="id" type="var">map</span> <span class="id" type="var">fst</span> <span class="id" type="var">cts</span>; 0 ≤ <span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span> <span class="id" type="var">mod</span> <span class="id" type="var">N</span> &lt; <span class="id" type="var">N</span>; <span class="id" type="var">Zlength</span> <span class="id" type="var">cts</span> = <span class="id" type="var">N</span>) <span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_b</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span> <span class="id" type="var">mod</span> <span class="id" type="var">N</span>))); <span class="id" type="var">temp</span> <span class="id" type="var">_h</span> (<span class="id" type="var">Vint</span> (<span class="id" type="var">Int.repr</span> (<span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span>))); <span class="id" type="var">temp</span> <span class="id" type="var">_table</span> <span class="id" type="var">table</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_s</span> <span class="id" type="var">s</span>; <span class="id" type="var">gvars</span> <span class="id" type="var">gv</span>) <span class="id" type="var">SEP</span> (<span class="id" type="var">cstring</span> <span class="id" type="var">Ews</span> <span class="id" type="var">sigma</span> <span class="id" type="var">s</span>; <span class="id" type="var">malloc_token</span> <span class="id" type="var">Ews</span> <span class="id" type="var">thashtable</span> <span class="id" type="var">table</span>; <span class="id" type="var">data_at</span> <span class="id" type="var">Ews</span> (<span class="id" type="var">tarray</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>) <span class="id" type="var">N</span>) (<span class="id" type="var">map</span> <span class="id" type="var">snd</span> <span class="id" type="var">cts</span>) (<span class="id" type="var">field_address</span> <span class="id" type="var">thashtable</span> [<span class="id" type="var">StructField</span> <span class="id" type="var">_buckets</span>] <span class="id" type="var">table</span>); <span class="id" type="var">iter_sepcon</span> (<span class="id" type="var">uncurry</span> <span class="id" type="var">listrep</span>) <span class="id" type="var">cts</span>; <span class="id" type="var">mem_mgr</span> <span class="id" type="var">gv</span>)); <span class="id" type="tactic">apply</span> <span class="id" type="var">semax_seq'</span> <span class="id" type="keyword">with</span> <span class="id" type="var">j</span>; <span class="id" type="tactic">subst</span> <span class="id" type="var">j</span>; <span class="id" type="var">abbreviate_semax</span>.<br/>
+{<br/>
+&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;}<br/>
+<br/>
+<span class="id" type="var">Intros</span> <span class="id" type="var">cts</span>.<br/>
+<span class="id" type="tactic">subst</span> <span class="id" type="var">contents</span>.<br/>
+<span class="id" type="tactic">unfold</span> <span class="id" type="var">hashtable_get</span> <span class="id" type="keyword">in</span> <span class="id" type="var">Hmax</span>.<br/>
+<span class="id" type="tactic">rewrite</span> <span class="id" type="var">Zlength_map</span>, <span class="id" type="var">H<sub>1</sub></span> <span class="id" type="keyword">in</span> <span class="id" type="var">Hmax</span>.<br/>
+<span class="id" type="tactic">set</span> (<span class="id" type="var">h</span> := <span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span> <span class="id" type="var">mod</span> <span class="id" type="var">N</span>) <span class="id" type="keyword">in</span> *.<br/>
+<span class="id" type="var">erewrite</span> (<span class="id" type="var">wand_slice_array</span> <span class="id" type="var">h</span> (<span class="id" type="var">h</span>+1) <span class="id" type="var">N</span> <span class="id" type="var">_</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">tcell</span>))<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">by</span> <span class="id" type="var">first</span> [<span class="id" type="var">rep_omega</span> | <span class="id" type="var">list_solve</span> ].<br/>
+</div>
+
+<div class="doc">
+For the remainder of the proof, here are some useful lemmas:
+    <span class="inlinecode"><span class="id" type="var">sublist_len_1</span></span>, <span class="inlinecode"><span class="id" type="var">sublist_same</span></span>, <span class="inlinecode"><span class="id" type="var">sublist_map</span></span>,
+    <span class="inlinecode"><span class="id" type="var">data_at_singleton_array_eq</span></span>,
+    <span class="inlinecode"><span class="id" type="var">iter_sepcon_split3</span></span>,  <span class="inlinecode"><span class="id" type="var">iter_sepcon_app</span></span>, <span class="inlinecode"><span class="id" type="var">sublist_split</span></span>,
+    <span class="inlinecode"><span class="id" type="var">field_at_data_at</span></span>, <span class="inlinecode"><span class="id" type="var">wand_slice_array_tptr_tcell</span></span>
+
+</div>
+<div class="code code-tight">
+
+&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="code code-tight">
+
+<span class="comment">(*&nbsp;Wed&nbsp;Apr&nbsp;24&nbsp;08:45:37&nbsp;EDT&nbsp;2019&nbsp;*)</span><br/>
+</div>
+</div>
+
+
+
+</div>
+
+</body>
+</html>

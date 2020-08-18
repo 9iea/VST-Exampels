@@ -1,0 +1,766 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link href="common/css/sf.css" rel="stylesheet" type="text/css"/>
+<title>Verif_append1: List segments</title>
+</head>
+<link href="common/jquery-ui/jquery-ui.css" rel="stylesheet">
+<script src="common/jquery-ui/external/jquery/jquery.js"></script>
+<script src="common/jquery-ui/jquery-ui.js"></script>
+<script src="common/toggleproofs.js"></script>
+<link href="common/css/vc.css" rel="stylesheet" type="text/css"/>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+<a href='https://www.cis.upenn.edu/~bcpierce/sf/current/index.html'>
+<img src='common/media/image/sf_logo_sm.png'></a>
+</br><a href='index.html'>  <span class='booktitleinheader'>Volume 5beta: Verifiable C</span><br></br>
+<ul id='menu'>
+   <a href='toc.html'><li class='section_name'>Table of Contents</li></a>
+   <a href='coqindex.html'><li class='section_name'>Index</li></a>
+</ul>
+</a></div>
+
+<div id="main">
+
+<h1 class="libtitle">Verif_append1<span class="subtitle">List segments</span></h1>
+
+
+<div class="doc">
+
+<div class="paragraph"> </div>
+
+<a name="lab63"></a><h2 class="section">Here is a little C program, <span class="inlinecode"><span class="id" type="var">append.c</span></span></h2>
+
+<div class="paragraph"> </div>
+
+
+<div class="paragraph"> </div>
+
+<pre>
+#include &lt;stddef.h&gt;
+
+struct list {int head; struct list *tail;};
+
+struct list *append (struct list *x, struct list *y) {
+  struct list *t, *u;
+  if (x==NULL)
+    return y;
+  else {
+    t = x;
+    u = t<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>tail;
+    while (u!=NULL) {
+      t = u;
+      u = t<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>tail;
+    }
+    t<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>tail = y;
+    return x;
+  }
+}
+</pre>
+
+<div class="paragraph"> </div>
+
+ In this chapter, we will learn to verify this in-place linked-list-append
+operation. That is, two original lists will be destructed and a new list,
+the concatenation of them, will be constructed in this program.
+
+<div class="paragraph"> </div>
+
+ As we did in previous chapters, we import VST and the C program's AST.
+
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.proofauto</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VC.append</span>.<br/>
+<span class="id" type="keyword">Instance</span> <span class="id" type="var">CompSpecs</span> : <span class="id" type="var">compspecs</span>. <span class="id" type="var">make_compspecs</span> <span class="id" type="var">prog</span>. <span class="id" type="keyword">Defined</span>.<br/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">Vprog</span> : <span class="id" type="var">varspecs</span>. <span class="id" type="var">mk_varspecs</span> <span class="id" type="var">prog</span>. <span class="id" type="keyword">Defined</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab64"></a><h2 class="section">Specification of the <span class="inlinecode"><span class="id" type="var">append</span></span> function.</h2>
+
+<div class="paragraph"> </div>
+
+ Here we just copy what we have defined in <a href="Verif_reverse.html"><span class="inlineref">Verif_reverse</span></a> 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">t_list</span> := <span class="id" type="var">Tstruct</span> <span class="id" type="var">_list</span> <span class="id" type="var">noattr</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">listrep</span> (<span class="id" type="var">sigma</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">p</span>: <span class="id" type="var">val</span>) : <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">sigma</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;| <span class="id" type="var">h</span>::<span class="id" type="var">hs</span> ⇒ <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">y</span>:<span class="id" type="var">val</span>, <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">h</span>,<span class="id" type="var">y</span>) <span class="id" type="var">p</span>  *  <span class="id" type="var">listrep</span> <span class="id" type="var">hs</span> <span class="id" type="var">y</span><br/>
+&nbsp;| <span class="id" type="var">nil</span> ⇒ <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;!! (<span class="id" type="var">p</span> = <span class="id" type="var">nullval</span>) &amp;&amp; <span class="id" type="var">emp</span><br/>
+&nbsp;<span class="id" type="keyword">end</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="var">Arguments</span> <span class="id" type="var">listrep</span> <span class="id" type="var">sigma</span> <span class="id" type="var">p</span> : <span class="id" type="tactic">simpl</span> <span class="id" type="var">never</span>.<br/>
+</div>
+
+<div class="doc">
+Then we can easily describe the functionality of this <span class="inlinecode"><span class="id" type="var">append</span></span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">append_spec</span> :=<br/>
+&nbsp;<span class="id" type="var">DECLARE</span> <span class="id" type="var">_append</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">WITH</span> <span class="id" type="var">x</span>: <span class="id" type="var">val</span>, <span class="id" type="var">y</span>: <span class="id" type="var">val</span>, <span class="id" type="var">s<sub>1</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">PRE</span> [ <span class="id" type="var">_x</span> <span class="id" type="var">OF</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">t_list</span>) , <span class="id" type="var">_y</span> <span class="id" type="var">OF</span> (<span class="id" type="var">tptr</span> <span class="id" type="var">t_list</span>)]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_x</span> <span class="id" type="var">x</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_y</span> <span class="id" type="var">y</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">listrep</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span>; <span class="id" type="var">listrep</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span>)<br/>
+&nbsp;&nbsp;<span class="id" type="var">POST</span> [ <span class="id" type="var">tptr</span> <span class="id" type="var">t_list</span> ]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">r</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span>()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span>(<span class="id" type="var">temp</span> <span class="id" type="var">ret_temp</span> <span class="id" type="var">r</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">listrep</span> (<span class="id" type="var">s<sub>1</sub></span>++<span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">r</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">Gprog</span> : <span class="id" type="var">funspecs</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">ltac</span>:(<span class="id" type="var">with_library</span> <span class="id" type="var">prog</span> [ <span class="id" type="var">append_spec</span> ]).<br/>
+</div>
+
+<div class="doc">
+<a name="lab65"></a><h2 class="section">List segments.</h2>
+
+<div class="paragraph"> </div>
+
+ When verifying this program, a critical step is to figure out
+a correct loop invariant. If we try to simulate this program,
+especially the loop in it, we may want a loop invariant which
+can be illustrated by the following diagram. 
+</div>
+
+<div class="doc">
+<pre>
+        +---+---+            +---+---+   +---+---+   +---+---+   
+  x ==&gt; |   |  ===&gt; ... ===&gt; |   | t ==&gt; | b | u ==&gt; |   |  ===&gt; ... 
+        +---+---+            +---+---+   +---+---+   +---+---+
+
+      | &lt;========= s1a =========&gt; |       (b)       | &lt;==== s1c ====&gt; |
+
+      | &lt;============================= s<sub>1</sub> ==========================&gt; |
+
+
+
+
+        +---+---+   +---+---+   +---+---+   
+  y ==&gt; |   |  ===&gt; |   |   ==&gt; |   |  ===&gt; ... 
+        +---+---+   +---+---+   +---+---+
+
+      | &lt;================ s<sub>2</sub> =================&gt; |
+</pre>
+
+<div class="paragraph"> </div>
+
+
+<div class="paragraph"> </div>
+
+ To describe this loop invariant, we need a separation logic predicate to
+describe the partial linked list from address <span class="inlinecode"><span class="id" type="var">x</span></span> to address <span class="inlinecode"><span class="id" type="var">t</span></span> with contents
+<span class="inlinecode"><span class="id" type="var">s1a</span></span>. This must a new predicate different from <span class="inlinecode"><span class="id" type="var">listrep</span></span> because <span class="inlinecode"><span class="id" type="var">listrep</span></span>
+describes linked lists ending with <span class="inlinecode"><span class="id" type="var">NULL</span></span> which is not the case here. We call
+this new predicate <span class="inlinecode"><span class="id" type="var">lseg</span></span>, pronounced "list-segment". 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">lseg</span> (<span class="id" type="var">contents</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">z</span>: <span class="id" type="var">val</span>) : <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">contents</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" type="var">nil</span> ⇒ !! (<span class="id" type="var">x</span> = <span class="id" type="var">z</span>) &amp;&amp; <span class="id" type="var">emp</span><br/>
+&nbsp;&nbsp;| <span class="id" type="var">h</span>::<span class="id" type="var">hs</span> ⇒ <span class="id" type="var">EX</span> <span class="id" type="var">y</span>:<span class="id" type="var">val</span>, <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">h</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> * <span class="id" type="var">lseg</span> <span class="id" type="var">hs</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span><br/>
+&nbsp;&nbsp;<span class="id" type="keyword">end</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="var">Arguments</span> <span class="id" type="var">lseg</span> <span class="id" type="var">contents</span> <span class="id" type="var">x</span> <span class="id" type="var">z</span> : <span class="id" type="tactic">simpl</span> <span class="id" type="var">never</span>.<br/>
+</div>
+
+<div class="doc">
+Now, we can prove some useful properties about <span class="inlinecode"><span class="id" type="var">lseg</span></span>. 
+<div class="paragraph"> </div>
+
+<a name="lab66"></a><h4 class="section">Exercise: 1 star, standard (singleton_lseg)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">singleton_lseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">a</span>: <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> &#x22A2;- <span class="id" type="var">lseg</span> [<span class="id" type="var">a</span>] <span class="id" type="var">x</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+ It is critical to observe that a partial linked list defined by
+<span class="inlinecode"><span class="id" type="var">lseg</span></span> <span class="inlinecode"><span class="id" type="var">s</span></span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> may have a loop. For example, the following diagram does satisfy
+<span class="inlinecode"><span class="id" type="var">lseg</span></span> <span class="inlinecode">[<span class="id" type="var">a</span>;</span> <span class="inlinecode"><span class="id" type="var">b</span>]</span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span>.
+</div>
+
+<div class="doc">
+<pre>
+        +---+---+   +---+---+   
+  x ==&gt; | a | y ==&gt; | b | y ====+ 
+        +---+---+   +- -+---+   |
+                      ^         |
+                      |         |
+                      +=========+
+</pre>
+We can prove this formally.
+
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">lseg_maybe_loop</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">a</span> <span class="id" type="var">b</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> * <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">b</span>, <span class="id" type="var">y</span>) <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">lseg</span> [<span class="id" type="var">a</span>; <span class="id" type="var">b</span>] <span class="id" type="var">x</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">lseg</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">Exists</span> <span class="id" type="var">y</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">Exists</span> <span class="id" type="var">y</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Is our definition of <span class="inlinecode"><span class="id" type="var">lseg</span></span> wrong? The answer is no because a loopy <span class="inlinecode"><span class="id" type="var">lseg</span></span>
+cannot connect to a nonempty linked list. For instance, we can prove that
+
+<div class="paragraph"> </div>
+
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">data_at</span>&nbsp;<span class="id" type="var">Tsh</span>&nbsp;<span class="id" type="var">t_list</span>&nbsp;(<span class="id" type="var">a</span>,&nbsp;<span class="id" type="var">y</span>)&nbsp;<span class="id" type="var">x</span>&nbsp;*&nbsp;<span class="id" type="var">data_at</span>&nbsp;<span class="id" type="var">Tsh</span>&nbsp;<span class="id" type="var">t_list</span>&nbsp;(<span class="id" type="var">b</span>,&nbsp;<span class="id" type="var">y</span>)&nbsp;<span class="id" type="var">y</span>&nbsp;*&nbsp;<span class="id" type="var">listrep</span>&nbsp;[<span class="id" type="var">c</span>]&nbsp;<span class="id" type="var">y</span>
+<div class="paragraph"> </div>
+
+</div>
+will lead to a contradication. Here, the first two separating conjuncts build
+a loopy <span class="inlinecode"><span class="id" type="var">lseg</span></span> and the third separating conjunct is a nonempty <span class="inlinecode"><span class="id" type="var">listrep</span></span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">loopy_lseg_not_bad</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">a</span> <span class="id" type="var">b</span> <span class="id" type="var">c</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> * <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">b</span>, <span class="id" type="var">y</span>) <span class="id" type="var">y</span> * <span class="id" type="var">listrep</span> [<span class="id" type="var">c</span>] <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">FF</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">listrep</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">Intros</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">subst</span>.<br/>
+<span class="id" type="keyword">Check</span> (<span class="id" type="var">data_at_conflict</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">c</span>, <span class="id" type="var">nullval</span>)).<br/>
+&nbsp;&nbsp;<span class="id" type="var">sep_apply</span> (<span class="id" type="var">data_at_conflict</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">c</span>, <span class="id" type="var">nullval</span>)).<br/>
+&nbsp;&nbsp;+ <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;+ <span class="id" type="var">entailer</span>!.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Important note!  The proof above demonstrates the use of the 
+  <span class="inlinecode"><span class="id" type="var">sep_apply</span></span> tactic.  Step through that part of the proof carefully
+  to see what <span class="inlinecode"><span class="id" type="var">sep_apply</span></span> does. 
+<div class="paragraph"> </div>
+
+ Now we can prove the following theorems about partial linked
+lists and complete linked lists. 
+<div class="paragraph"> </div>
+
+<a name="lab67"></a><h4 class="section">Exercise: 1 star, standard (lseg_lseg)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">lseg_lseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">lseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">lseg</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> <span class="id" type="var">z</span> &#x22A2;- <span class="id" type="var">lseg</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span> <span class="id" type="var">z</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab68"></a><h4 class="section">Exercise: 1 star, standard (lseg_list)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">lseg_list</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">lseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">listrep</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+ Is it possible to define <span class="inlinecode"><span class="id" type="var">lseg</span></span> in a different way so that loopy 
+   situations can be banned?  Yes.  We discuss this near the end of 
+   the chapter. 
+<div class="paragraph"> </div>
+
+<a name="lab69"></a><h2 class="section">Proof of the <span class="inlinecode"><span class="id" type="var">append</span></span> function</h2>
+
+<div class="paragraph"> </div>
+
+ Before verifying the functional correctness of <span class="inlinecode"><span class="id" type="var">append</span></span>, we still need
+to add lemmas to hint databases for separation logic predicates. Readers
+may copy proofs from <a href="Verif_reverse.html"><span class="inlineref">Verif_reverse</span></a> or just skip down to "End of the
+material". 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_local_facts</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">sigma</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">sigma</span> <span class="id" type="var">p</span> &#x22A2;-<br/>
+&nbsp;&nbsp;&nbsp;!! (<span class="id" type="var">is_pointer_or_null</span> <span class="id" type="var">p</span> ∧ (<span class="id" type="var">p</span>=<span class="id" type="var">nullval</span> ↔ <span class="id" type="var">sigma</span>=<span class="id" type="var">nil</span>)).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">listrep_local_facts</span> : <span class="id" type="var">saturate_local</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_valid_pointer</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">sigma</span> <span class="id" type="var">p</span>,<br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">sigma</span> <span class="id" type="var">p</span> &#x22A2;- <span class="id" type="var">valid_pointer</span> <span class="id" type="var">p</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="keyword">Resolve</span> <span class="id" type="var">listrep_valid_pointer</span> : <span class="id" type="var">valid_pointer</span>.<br/>
+</div>
+
+<div class="doc">
+(End of the material repeated from Verif_stack.v) 
+<div class="paragraph"> </div>
+
+ In C programs, we test whether the head pointer of a linked list
+is null to determine whether that list is empty or not. Thus, from
+a separating conjunct <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode"><span class="id" type="var">contents</span></span> <span class="inlinecode"><span class="id" type="var">x</span></span>, it is useful to prove
+<span class="inlinecode"><span class="id" type="var">contents</span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">nil</span></span> (or <span class="inlinecode"><span class="id" type="var">contents</span></span> <span class="inlinecode">≠</span> <span class="inlinecode"><span class="id" type="var">nil</span></span>) when knowing that <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">nullval</span></span>
+(or <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode">≠</span> <span class="inlinecode"><span class="id" type="var">nullval</span></span>). The following two lemmas state such correlation.
+They will be used for several times in the C function <span class="inlinecode"><span class="id" type="var">append</span></span>'s
+correctness proof. 
+<div class="paragraph"> </div>
+
+<a name="lab70"></a><h4 class="section">Exercise: 1 star, standard (listrep_null)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_null</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">contents</span> <span class="id" type="var">x</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">x</span> = <span class="id" type="var">nullval</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">contents</span> <span class="id" type="var">x</span> = !! (<span class="id" type="var">contents</span>=<span class="id" type="var">nil</span>) &amp;&amp; <span class="id" type="var">emp</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+Hint: One way to prove <span class="inlinecode"><span class="id" type="var">P</span>=<span class="id" type="var">Q</span></span>, where P and Q are <span class="inlinecode"><span class="id" type="var">mpred</span></span>s,
+  is to apply <span class="inlinecode"><span class="id" type="var">pred_ext</span></span> and then prove <span class="inlinecode"><span class="id" type="var">P</span>&#x22A2;-<span class="id" type="var">Q</span></span> and <span class="inlinecode"><span class="id" type="var">Q</span>&#x22A2;-<span class="id" type="var">P</span></span>. 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab71"></a><h4 class="section">Exercise: 1 star, standard (listrep_nonnull)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep_nonnull</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">contents</span> <span class="id" type="var">x</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">x</span> ≠ <span class="id" type="var">nullval</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">contents</span> <span class="id" type="var">x</span> =<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">h</span>: <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">hs</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">y</span>:<span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;!! (<span class="id" type="var">contents</span> = <span class="id" type="var">h</span> :: <span class="id" type="var">hs</span>) &amp;&amp; <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">h</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">hs</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+Again, <span class="inlinecode"><span class="id" type="var">pred_ext</span></span> will be useful here. 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+ Now, let's prove this <span class="inlinecode"><span class="id" type="var">append</span></span> function correct. 
+<div class="paragraph"> </div>
+
+<a name="lab72"></a><h4 class="section">Exercise: 3 stars, standard (body_append)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_append</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_append</span> <span class="id" type="var">append_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="var">forward_if</span>. <span class="comment">(*&nbsp;if&nbsp;(x&nbsp;==&nbsp;NULL)&nbsp;*)</span><br/>
+- <span class="comment">(*&nbsp;If-then&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(**&nbsp;This&nbsp;if-then&nbsp;branch&nbsp;handles&nbsp;the&nbsp;cases&nbsp;in&nbsp;which&nbsp;<span class="inlinecode"><span class="id" type="var">x</span></span>&nbsp;is&nbsp;null.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;In&nbsp;other&nbsp;words,&nbsp;<span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span>&nbsp;should&nbsp;be&nbsp;<span class="inlinecode"><span class="id" type="var">nil</span></span>.&nbsp;We&nbsp;can&nbsp;easily&nbsp;derive&nbsp;this<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;fact&nbsp;by&nbsp;<span class="inlinecode"><span class="id" type="var">listrep_null</span></span>.&nbsp;The&nbsp;rest&nbsp;of&nbsp;the&nbsp;proof&nbsp;in&nbsp;this&nbsp;branch&nbsp;is<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;left&nbsp;as&nbsp;an&nbsp;exercise.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_null</span> <span class="id" type="var">_</span> <span class="id" type="var">x</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+- <span class="comment">(*&nbsp;If-else&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(**&nbsp;This&nbsp;time,&nbsp;we&nbsp;know&nbsp;that&nbsp;<span class="inlinecode"><span class="id" type="var">x</span></span>&nbsp;is&nbsp;not&nbsp;null;&nbsp;thus&nbsp;<span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span>&nbsp;should<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;be&nbsp;nonempty.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_nonnull</span> <span class="id" type="var">_</span> <span class="id" type="var">x</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">Intros</span> <span class="id" type="var">h</span> <span class="id" type="var">r</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;t&nbsp;=&nbsp;x;&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;u&nbsp;=&nbsp;t&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;tail;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+After symbolic executing two assignment commands, we arrive
+     at the while loop. As mentioned above, we can verify it using
+     the following loop invariant. 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">forward_while</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( <span class="id" type="var">EX</span> <span class="id" type="var">s1a</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">b</span>: <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">s1c</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">t</span>: <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">u</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">s<sub>1</sub></span> = <span class="id" type="var">s1a</span> ++ <span class="id" type="var">b</span> :: <span class="id" type="var">s1c</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_x</span> <span class="id" type="var">x</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_t</span> <span class="id" type="var">t</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_u</span> <span class="id" type="var">u</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_y</span> <span class="id" type="var">y</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">lseg</span> <span class="id" type="var">s1a</span> <span class="id" type="var">x</span> <span class="id" type="var">t</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">b</span>, <span class="id" type="var">u</span>) <span class="id" type="var">t</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">s1c</span> <span class="id" type="var">u</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span>))%<span class="id" type="tactic">assert</span>.<br/>
+&nbsp;+ <span class="comment">(*&nbsp;current&nbsp;assertion&nbsp;implies&nbsp;loop&nbsp;invariant&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">Exists</span> (@<span class="id" type="var">nil</span> <span class="id" type="var">val</span>) <span class="id" type="var">h</span> <span class="id" type="var">r</span> <span class="id" type="var">x</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="tactic">subst</span> <span class="id" type="var">s<sub>1</sub></span>. <span class="id" type="var">entailer</span>!. <span class="id" type="tactic">unfold</span> <span class="id" type="var">lseg</span>; <span class="id" type="var">entailer</span>!.<br/>
+&nbsp;+ <span class="comment">(*&nbsp;loop&nbsp;test&nbsp;is&nbsp;safe&nbsp;to&nbsp;execute&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+&nbsp;+  <span class="comment">(*&nbsp;loop&nbsp;body&nbsp;preserves&nbsp;invariant&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">(**&nbsp;We&nbsp;know&nbsp;<span class="inlinecode"><span class="id" type="var">u</span></span>&nbsp;is&nbsp;not&nbsp;null&nbsp;from&nbsp;the&nbsp;fact&nbsp;that&nbsp;the&nbsp;loop&nbsp;condition<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;true.&nbsp;Thus&nbsp;we&nbsp;can&nbsp;represent&nbsp;<span class="inlinecode"><span class="id" type="var">s1c</span></span>&nbsp;in&nbsp;the&nbsp;form&nbsp;of&nbsp;<span class="inlinecode">(<span class="id" type="var">c</span></span> <span class="inlinecode">::</span> <span class="inlinecode"><span class="id" type="var">s1d</span>)</span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="tactic">clear</span> <span class="id" type="var">h</span> <span class="id" type="var">r</span> <span class="id" type="var">u</span> <span class="id" type="var">H<sub>0</sub></span>; <span class="id" type="tactic">rename</span> <span class="id" type="var">u<sub>0</sub></span> <span class="id" type="var">into</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_nonnull</span> <span class="id" type="var">_</span> <span class="id" type="var">u</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">Intros</span> <span class="id" type="var">c</span> <span class="id" type="var">s1d</span> <span class="id" type="var">z</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;t&nbsp;=&nbsp;u;&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;u&nbsp;=&nbsp;t&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;tail;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+In the end of the loop body, we need to re-establish the
+      loop invariant. At this point, the memory layout can be
+      illustrated by the following diagram. 
+</div>
+
+<div class="doc">
+<pre>
+                                 new t       new u
+                                   |           |
+                                   |           |
+                 +---+---+   +---+---+   +---+---+   +---+---+   
+  x ==&gt; ... ===&gt; |   | t ==&gt; | b | u ==&gt; | c | z ==&gt; |   |  ===&gt; ... 
+                 +---+---+   +---+---+   +---+---+   +---+---+
+
+      | &lt;===== s1a =====&gt; |   (b)         (c)      | &lt;==== s1d ====&gt; |
+      | &lt;========== new s1a ========&gt; |  (new b)   | &lt;== new s1c ==&gt; |
+
+
+
+
+        +---+---+   +---+---+   +---+---+   
+  y ==&gt; |   |  ===&gt; |   |   ==&gt; |   |  ===&gt; ... 
+        +---+---+   +---+---+   +---+---+
+      | &lt;================ s<sub>2</sub> =================&gt; |
+
+
+</pre>
+      Clearly, <span class="inlinecode"><span class="id" type="var">s1a</span></span> <span class="inlinecode">++</span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode">::</span> <span class="inlinecode"><span class="id" type="var">nil</span></span> should be the new value of <span class="inlinecode"><span class="id" type="var">s1a</span></span>;
+      <span class="inlinecode"><span class="id" type="var">c</span></span> should be the new value of <span class="inlinecode"><span class="id" type="var">b</span></span>; <span class="inlinecode"><span class="id" type="var">s1d</span></span> should be the new
+      value of <span class="inlinecode"><span class="id" type="var">s1c</span></span>; <span class="inlinecode"><span class="id" type="var">u</span></span> should be the new value of <span class="inlinecode"><span class="id" type="var">t</span></span>; and <span class="inlinecode"><span class="id" type="var">z</span></span>
+      should be the new value of <span class="inlinecode"><span class="id" type="var">u</span></span>. The next command instantiates
+      the existentially quantified variables in our loop invariant
+      according to these correspondence. 
+</div>
+<div class="code code-tight">
+
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">Exists</span> ((<span class="id" type="var">s1a</span> ++ <span class="id" type="var">b</span> :: <span class="id" type="var">nil</span>),<span class="id" type="var">c</span>,<span class="id" type="var">s1d</span>,<span class="id" type="var">u</span>,<span class="id" type="var">z</span>). <span class="id" type="tactic">unfold</span> <span class="id" type="var">fst</span>, <span class="id" type="var">snd</span>.<br/>
+</div>
+
+<div class="doc">
+As usual, we try <span class="inlinecode"><span class="id" type="var">entailer</span>!</span> to solve this proof goal. This
+      time, <span class="inlinecode"><span class="id" type="var">entailer</span>!</span> does not solve it directly. Instead, two
+      simplified proof goals are left. Their proofs are left for
+      readers. Hint, <span class="inlinecode"><span class="id" type="var">app_assoc</span></span>, <span class="inlinecode"><span class="id" type="var">singleton_lseg</span></span> and <span class="inlinecode"><span class="id" type="var">lseg_lseg</span></span> may
+      be useful. 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;* <span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;* <span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;+ <span class="comment">(*&nbsp;after&nbsp;the&nbsp;loop&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(**&nbsp;After&nbsp;exiting&nbsp;the&nbsp;loop,&nbsp;the&nbsp;loop&nbsp;condition&nbsp;must&nbsp;be&nbsp;false,&nbsp;i.e.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" type="var">u</span></span>&nbsp;is&nbsp;the&nbsp;null&nbsp;pointer.&nbsp;Thus&nbsp;<span class="inlinecode"><span class="id" type="var">s1c</span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">nil</span></span>&nbsp;and&nbsp;<span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">s1a</span></span> <span class="inlinecode">++</span> <span class="inlinecode">[<span class="id" type="var">b</span>]</span>.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" type="tactic">clear</span> <span class="id" type="var">h</span> <span class="id" type="var">r</span> <span class="id" type="var">u</span> <span class="id" type="var">H<sub>0</sub></span>; <span class="id" type="tactic">rename</span> <span class="id" type="var">u<sub>0</sub></span> <span class="id" type="var">into</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_null</span> <span class="id" type="var">s1c</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">Intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">subst</span> <span class="id" type="var">s1c</span>.<br/>
+</div>
+
+<div class="doc">
+The rest of the proof is standard. Hint, <span class="inlinecode"><span class="id" type="var">singleton_lseg</span></span>,
+    <span class="inlinecode"><span class="id" type="var">lseg_lseg</span></span> and/or <span class="inlinecode"><span class="id" type="var">lseg_list</span></span> may be useful. 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab73"></a><h2 class="section">Additional exercises: more proofs about list segments</h2>
+
+<div class="paragraph"> </div>
+
+ For verifying the C function <span class="inlinecode"><span class="id" type="var">append</span></span>, it is enough to have only
+three separation logic proof rules about <span class="inlinecode"><span class="id" type="var">lseg</span></span>: <span class="inlinecode"><span class="id" type="var">singleton_lseg</span></span>,
+<span class="inlinecode"><span class="id" type="var">lseg_lseg</span></span> and <span class="inlinecode"><span class="id" type="var">lseg_list</span></span>. The following exercises are other important
+properties of <span class="inlinecode"><span class="id" type="var">lseg</span></span>. 
+<div class="paragraph"> </div>
+
+<a name="lab74"></a><h4 class="section">Exercise: 1 star, standard: (lseg2listrep)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">lseg2listrep</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span> <span class="id" type="var">x</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">lseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span> &#x22A2;- <span class="id" type="var">listrep</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab75"></a><h4 class="section">Exercise: 1 star, standard: (listrep2lseg)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listrep2lseg</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span> <span class="id" type="var">x</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> &#x22A2;- <span class="id" type="var">lseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="code code-tight">
+
+<span class="id" type="keyword">Corollary</span> <span class="id" type="var">lseg_listrep_equiv</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span> <span class="id" type="var">x</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">lseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span> = <span class="id" type="var">listrep</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">pred_ext</span>.<br/>
+&nbsp;&nbsp;+ <span class="id" type="tactic">apply</span> <span class="id" type="var">lseg2listrep</span>.<br/>
+&nbsp;&nbsp;+ <span class="id" type="tactic">apply</span> <span class="id" type="var">listrep2lseg</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab76"></a><h4 class="section">Exercise: 2 stars, standard: (lseg_lseg_inv)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">lseg_lseg_inv</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">z</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">lseg</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span> <span class="id" type="var">z</span> &#x22A2;- <span class="id" type="var">EX</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>, <span class="id" type="var">lseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">lseg</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> <span class="id" type="var">z</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab77"></a><h4 class="section">Exercise: 2 stars, standard: (loopy_lseg_no_connection)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">loopy_lseg_no_connection</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">s<sub>1</sub></span> ≠ <span class="id" type="var">nil</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">s<sub>2</sub></span> ≠ <span class="id" type="var">nil</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">x</span> = <span class="id" type="var">y</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">lseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">lseg</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> <span class="id" type="var">z</span> &#x22A2;- <span class="id" type="var">FF</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab78"></a><h2 class="section">Additional exercises: loop-free list segments</h2>
+
+<div class="paragraph"> </div>
+
+ In the following exercise, try to re-do the proof above
+  using a different partial-linked-list predicate. 
+<div class="paragraph"> </div>
+
+ We have mentioned that the <span class="inlinecode"><span class="id" type="var">lseg</span></span> predicate allows a loopy structure,
+   which is quite counter-intuitive. The following definition is an 
+   alternative choice. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">nt_lseg</span> (<span class="id" type="var">contents</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">z</span>: <span class="id" type="var">val</span>) : <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">contents</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" type="var">nil</span> ⇒ !! (<span class="id" type="var">x</span> = <span class="id" type="var">z</span>) &amp;&amp; <span class="id" type="var">emp</span><br/>
+&nbsp;&nbsp;| <span class="id" type="var">h</span>::<span class="id" type="var">hs</span> ⇒ <span class="id" type="var">EX</span> <span class="id" type="var">y</span>:<span class="id" type="var">val</span>, !! (<span class="id" type="var">x</span> ≠ <span class="id" type="var">z</span>) &amp;&amp; <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">h</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> * <span class="id" type="var">nt_lseg</span> <span class="id" type="var">hs</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span><br/>
+&nbsp;&nbsp;<span class="id" type="keyword">end</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="var">Arguments</span> <span class="id" type="var">nt_lseg</span> <span class="id" type="var">contents</span> <span class="id" type="var">x</span> <span class="id" type="var">z</span> : <span class="id" type="tactic">simpl</span> <span class="id" type="var">never</span>.<br/>
+</div>
+
+<div class="doc">
+Here, "nt" means no-touch. 
+<div class="paragraph"> </div>
+
+ The difference between <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> and <span class="inlinecode"><span class="id" type="var">lseg</span></span> is the extra proposition
+  <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode">≠</span> <span class="inlinecode"><span class="id" type="var">z</span></span> in the nonempty situation. This extra clause in <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> 
+  prevents loop structures.
+
+<div class="paragraph"> </div>
+
+  The proof theories of <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> and <span class="inlinecode"><span class="id" type="var">lseg</span></span> are a bit different as
+  well. The following diagram shows that the counterpart of <span class="inlinecode"><span class="id" type="var">lseg_lseg</span></span>
+  is not valid! 
+<pre>
+        +---+---+   +---+---+   +---+---+   +---+---+   
+  x ==&gt; | a | u ==&gt; | b | y ==&gt; | c | v ==&gt; | d | u ===+
+        +---+---+   +- -+---+   +---+---+   +---+---+  |
+                      ^                                |
+                      |                                |
+                      +================================+
+</pre>
+  In this example, both <span class="inlinecode"></span> <span class="inlinecode">[<span class="id" type="var">a</span>;</span> <span class="inlinecode"><span class="id" type="var">b</span>]</span> <span class="inlinecode"></span> and <span class="inlinecode"></span> <span class="inlinecode">[<span class="id" type="var">c</span>;</span> <span class="inlinecode"><span class="id" type="var">d</span>]</span> <span class="inlinecode"></span> are stored in loop-free 
+  partial linked lists but it is not true for their concatenation. In 
+  general, if <span class="inlinecode">(<span class="id" type="var">nt_lseg</span></span> <span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span>)</span> and <span class="inlinecode">(<span class="id" type="var">nt_lseg</span></span> <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode"><span class="id" type="var">z</span>)</span> describe two 
+  loop-free partial linked lists, the assertion 
+  <span class="inlinecode">(<span class="id" type="var">nt_lseg</span></span> <span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode">*</span> <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode"><span class="id" type="var">z</span>)</span> cannot ensure that the structure 
+  is loop free. Specifically, the address <span class="inlinecode"><span class="id" type="var">z</span></span> may be used in
+  <span class="inlinecode">(<span class="id" type="var">nt_lseg</span></span> <span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span>)</span>. In other words,
+<span class="inlinecode"></span>
+   <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> <span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode">*</span> <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode"><span class="id" type="var">z</span></span> <span class="inlinecode">&#x22A2;/-</span> <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> <span class="inlinecode">(<span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode">++</span> <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span>)</span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">z</span></span> 
+<span class="inlinecode"></span>
+
+<div class="paragraph"> </div>
+
+ For <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span>, the follow proof rules are useful. 
+<div class="paragraph"> </div>
+
+<a name="lab79"></a><h4 class="section">Exercise: 2 stars, standard, optional (nt_lseg)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">singleton_nt_lseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">contents</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">a</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">contents</span> <span class="id" type="var">y</span> &#x22A2;-<br/>
+&nbsp;&nbsp;<span class="id" type="var">nt_lseg</span> [<span class="id" type="var">a</span>] <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">contents</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab80"></a><h4 class="section">Exercise: 2 stars, standard, optional (singleton_nt_lseg')</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">singleton_nt_lseg'</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">a</span> <span class="id" type="var">b</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> * <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">b</span>, <span class="id" type="var">z</span>) <span class="id" type="var">y</span> &#x22A2;-<br/>
+&nbsp;&nbsp;<span class="id" type="var">nt_lseg</span> [<span class="id" type="var">a</span>] <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">b</span>, <span class="id" type="var">z</span>) <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab81"></a><h4 class="section">Exercise: 2 stars, standard, optional (nt_lseg_nt_lseg)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">nt_lseg_nt_lseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">a</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span> <span class="id" type="var">u</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">nt_lseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">nt_lseg</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> <span class="id" type="var">z</span> * <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">u</span>) <span class="id" type="var">z</span> &#x22A2;-<br/>
+&nbsp;&nbsp;<span class="id" type="var">nt_lseg</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span> <span class="id" type="var">z</span> * <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">u</span>) <span class="id" type="var">z</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+Hint:  This lemma illustrates the most classic case of
+  where aggressive <span class="inlinecode"><span class="id" type="var">cancel</span></span> can turn a provable goal into
+  an unprovable goal.  For that reason, you may need to
+  use <span class="inlinecode"><span class="id" type="var">entailer</span></span> rather than <span class="inlinecode"><span class="id" type="var">entailer</span>!</span> at one point. 
+</div>
+<div class="code code-tight">
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab82"></a><h4 class="section">Exercise: 2 stars, standard, optional (nt_lseg_list)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">nt_lseg_list</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">nt_lseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">listrep</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+ Now, we will use <span class="inlinecode"><span class="id" type="var">nt_lseg</span></span> instead of <span class="inlinecode"><span class="id" type="var">lseg</span></span> in the loop invariant to
+prove <span class="inlinecode"><span class="id" type="var">body_append</span></span>. 
+<div class="paragraph"> </div>
+
+<a name="lab83"></a><h4 class="section">Exercise: 3 stars, standard, optional (body_append_alter1)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_append_alter1</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_append</span> <span class="id" type="var">append_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="var">forward_if</span>. <span class="comment">(*&nbsp;if&nbsp;(x&nbsp;==&nbsp;NULL)&nbsp;*)</span><br/>
+- <span class="comment">(*&nbsp;If-then&nbsp;*)</span><br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_null</span> <span class="id" type="var">_</span> <span class="id" type="var">x</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+- <span class="comment">(*&nbsp;If-else&nbsp;*)</span><br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_nonnull</span> <span class="id" type="var">_</span> <span class="id" type="var">x</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;<span class="id" type="var">Intros</span> <span class="id" type="var">h</span> <span class="id" type="var">r</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;t&nbsp;=&nbsp;x;&nbsp;*)</span><br/>
+&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;u&nbsp;=&nbsp;t&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;tail;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+Now, you need to use <span class="inlinecode"><span class="id" type="var">forward_while</span></span> to verify this while loop.
+    Remember, <span class="inlinecode"><span class="id" type="var">forward_while</span></span> will generate four proof goals: current
+    precondition implies loop invariant; loop test is safe to execute;
+    loop body preserves invariant; and the correctness of after-loop
+    commands. 
+</div>
+<div class="code code-tight">
+&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="code code-tight">
+
+<span class="comment">(*&nbsp;Wed&nbsp;Apr&nbsp;24&nbsp;08:45:37&nbsp;EDT&nbsp;2019&nbsp;*)</span><br/>
+</div>
+</div>
+
+
+
+</div>
+
+</body>
+</html>

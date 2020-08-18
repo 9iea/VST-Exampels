@@ -1,0 +1,2 @@
+VST_LOC=../vst
+CC_LOC=/root/CompCert-3.5

@@ -1,0 +1,740 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link href="common/css/sf.css" rel="stylesheet" type="text/css"/>
+<title>Verif_append2: Magic wand, partial data structure</title>
+</head>
+<link href="common/jquery-ui/jquery-ui.css" rel="stylesheet">
+<script src="common/jquery-ui/external/jquery/jquery.js"></script>
+<script src="common/jquery-ui/jquery-ui.js"></script>
+<script src="common/toggleproofs.js"></script>
+<link href="common/css/vc.css" rel="stylesheet" type="text/css"/>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+<a href='https://www.cis.upenn.edu/~bcpierce/sf/current/index.html'>
+<img src='common/media/image/sf_logo_sm.png'></a>
+</br><a href='index.html'>  <span class='booktitleinheader'>Volume 5beta: Verifiable C</span><br></br>
+<ul id='menu'>
+   <a href='toc.html'><li class='section_name'>Table of Contents</li></a>
+   <a href='coqindex.html'><li class='section_name'>Index</li></a>
+</ul>
+</a></div>
+
+<div id="main">
+
+<h1 class="libtitle">Verif_append2<span class="subtitle">Magic wand, partial data structure</span></h1>
+
+
+<div class="doc">
+
+<div class="paragraph"> </div>
+
+<a name="lab84"></a><h2 class="section">Separating Implication</h2>
+
+<div class="paragraph"> </div>
+
+ Separating implication is another separation logic operator. 
+  It is written as  -*  in  Verifiable C. Because of its shape, 
+  it is usually called "magic wand". The following <span class="inlinecode"><span class="id" type="var">Locate</span></span> command 
+  and <span class="inlinecode"><span class="id" type="keyword">Check</span></span> command show this notation definition and its typing
+  information. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.proofauto</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="var">Locate</span> "-*".<br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(*&nbsp;Notation&nbsp;"P&nbsp;'-*'&nbsp;Q"&nbsp;:=&nbsp;wand&nbsp;P&nbsp;Q&nbsp;:&nbsp;logic&nbsp;(default&nbsp;interpretation)&nbsp;*)</span><br/>
+<span class="id" type="keyword">Check</span> <span class="id" type="var">wand</span>. <span class="comment">(*&nbsp;:&nbsp;mpred&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;mpred&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;mpred&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+In separation logic, a heaplet (piece of memory) <span class="inlinecode"><span class="id" type="var">m</span></span> satisfies <span class="inlinecode"><span class="id" type="var">P</span></span> <span class="inlinecode">-*</span> <span class="inlinecode"><span class="id" type="var">Q</span></span>
+  if and only if: for any possible heaplet <span class="inlinecode"><span class="id" type="var">n</span></span>, 
+  if <span class="inlinecode"><span class="id" type="var">n</span></span> and <span class="inlinecode"><span class="id" type="var">m</span></span> are disjoint and <span class="inlinecode"><span class="id" type="var">n</span></span> satisfies <span class="inlinecode"><span class="id" type="var">P</span></span>, then the
+  combination of <span class="inlinecode"><span class="id" type="var">n</span></span> and <span class="inlinecode"><span class="id" type="var">m</span></span> will satisfy <span class="inlinecode"><span class="id" type="var">Q</span></span>.
+
+<div class="paragraph"> </div>
+
+  The most important proof rule for separating implication is the adjoint
+  property. It says, <span class="inlinecode"><span class="id" type="var">P</span>*<span class="id" type="var">Q</span></span> derives <span class="inlinecode"><span class="id" type="var">R</span></span> if and only if <span class="inlinecode"><span class="id" type="var">P</span></span> derives <span class="inlinecode"><span class="id" type="var">Q</span>-*<span class="id" type="var">R</span></span>.
+  This rule is called <span class="inlinecode"><span class="id" type="var">wand_sepcon_adjoint</span></span> in Verifiable C. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Check</span> <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;:&nbsp;forall&nbsp;P&nbsp;Q&nbsp;R&nbsp;:&nbsp;mpred,&nbsp;P&nbsp;*&nbsp;Q&nbsp;&#x22A2;-&nbsp;R&nbsp;&lt;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;P&nbsp;&#x22A2;-&nbsp;Q&nbsp;-*&nbsp;R&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+Because of this property, we also call <span class="inlinecode">-*</span> a right adjoint of <span class="inlinecode">*</span>.
+  In propositional logic, 
+  implication <span class="inlinecode">→</span> is a right adjoint of conjunction <span class="inlinecode">∧</span>.
+ 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">implies_and_adjoint</span>:<br/>
+&nbsp;&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">P</span> <span class="id" type="var">Q</span> <span class="id" type="var">R</span> : <span class="id" type="keyword">Prop</span>, (<span class="id" type="var">P</span> ∧ <span class="id" type="var">Q</span> → <span class="id" type="var">R</span>) ↔ (<span class="id" type="var">P</span> → (<span class="id" type="var">Q</span> → <span class="id" type="var">R</span>)).<br/>
+<span class="id" type="keyword">Proof</span>. <span class="id" type="tactic">intuition</span>. <span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+This intrinsic similarity gives <span class="inlinecode">-*</span> the name "separating implication".
+  The following are two other important properties of <span class="inlinecode">-*</span>; we can easily
+  find their counterparts about propositional-logic "implication". 
+<div class="paragraph"> </div>
+
+ Proof rules for separating implication: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Check</span> <span class="id" type="var">wand_derives</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;:&nbsp;forall&nbsp;P&nbsp;P'&nbsp;Q&nbsp;Q'&nbsp;:&nbsp;mpred,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;P'&nbsp;&#x22A2;-&nbsp;P&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;Q&nbsp;&#x22A2;-&nbsp;Q'&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;P&nbsp;-*&nbsp;Q&nbsp;&#x22A2;-&nbsp;P'&nbsp;-*&nbsp;Q'&nbsp;*)</span><br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Check</span> <span class="id" type="var">modus_ponens_wand</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;:&nbsp;forall&nbsp;P&nbsp;Q&nbsp;:&nbsp;mpred,&nbsp;P&nbsp;*&nbsp;(P&nbsp;-*&nbsp;Q)&nbsp;&#x22A2;-&nbsp;Q&nbsp;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+Now, we learn to use the adjoint property to prove other 
+  separation-logic rules about <span class="inlinecode">-*</span>. We will start from an easy one. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wand_trivial</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">P</span> <span class="id" type="var">Q</span>: <span class="id" type="var">mpred</span>, <span class="id" type="var">P</span> &#x22A2;- <span class="id" type="var">Q</span> -* (<span class="id" type="var">P</span> * <span class="id" type="var">Q</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">derives_refl</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Then, we will reprove the modus ponens rule for <span class="inlinecode">-*</span> and <span class="inlinecode">*</span> from 
+  the adjoint property. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">modus_ponens_wand_from_adjoint</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">P</span> <span class="id" type="var">Q</span> : <span class="id" type="var">mpred</span>, <span class="id" type="var">P</span> * (<span class="id" type="var">P</span> -* <span class="id" type="var">Q</span>) &#x22A2;- <span class="id" type="var">Q</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">sepcon_comm</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> → <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">derives_refl</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+In the following exercise, prove <span class="inlinecode"><span class="id" type="var">wand_derives</span></span> using 
+  <span class="inlinecode"><span class="id" type="var">wand_sepcon_adjoint</span></span> and <span class="inlinecode"><span class="id" type="var">modus_ponens_wand</span></span>. You can use other proof 
+  rules about <span class="inlinecode">*</span>, such as <span class="inlinecode"><span class="id" type="var">sepcon_derives</span></span>.
+  Also, the tactic <span class="inlinecode"><span class="id" type="var">sep_apply</span></span> may be useful. 
+<div class="paragraph"> </div>
+
+<a name="lab85"></a><h4 class="section">Exercise: 2 stars, standard: (wand_derives)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wand_derives_from_adjoint_and_modus_ponens</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">P</span> <span class="id" type="var">P'</span> <span class="id" type="var">Q</span> <span class="id" type="var">Q'</span> : <span class="id" type="var">mpred</span>, <br/>
+&nbsp;&nbsp;&nbsp;<span class="id" type="var">P'</span> &#x22A2;- <span class="id" type="var">P</span>  →  <span class="id" type="var">Q</span> &#x22A2;- <span class="id" type="var">Q'</span>  →  <span class="id" type="var">P</span> -* <span class="id" type="var">Q</span> &#x22A2;- <span class="id" type="var">P'</span> -* <span class="id" type="var">Q'</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+ Theorem <span class="inlinecode"><span class="id" type="var">wand_frame_ver</span></span> is the counterpart of implication's
+  transitivity.  As we will see, it allows "vertical composition" of
+  wand frames.  
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Check</span> <span class="id" type="var">wand_frame_ver</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;&nbsp;:&nbsp;forall&nbsp;P&nbsp;Q&nbsp;R&nbsp;:&nbsp;mpred,&nbsp;(P&nbsp;-*&nbsp;Q)&nbsp;*&nbsp;(Q&nbsp;-*&nbsp;R)&nbsp;&#x22A2;-&nbsp;P&nbsp;-*&nbsp;R&nbsp;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+Prove it by <span class="inlinecode"><span class="id" type="var">wand_sepcon_adjoint</span></span> and <span class="inlinecode"><span class="id" type="var">sep_apply</span></span> <span class="inlinecode">(<span class="id" type="var">modus_ponens_wand</span></span> <span class="inlinecode">...)</span> 
+<div class="paragraph"> </div>
+
+<a name="lab86"></a><h4 class="section">Exercise: 2 stars, standard: (wand_frame_ver)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wand_frame_ver_from_adjoint_and_modus_ponens</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">P</span> <span class="id" type="var">Q</span> <span class="id" type="var">R</span> : <span class="id" type="var">mpred</span>, (<span class="id" type="var">P</span> -* <span class="id" type="var">Q</span>) * (<span class="id" type="var">Q</span> -* <span class="id" type="var">R</span>) &#x22A2;- <span class="id" type="var">P</span> -* <span class="id" type="var">R</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+ More exercises: prove that <span class="inlinecode"><span class="id" type="var">emp</span></span> <span class="inlinecode">-*</span> <span class="inlinecode"><span class="id" type="var">emp</span></span> and <span class="inlinecode"><span class="id" type="var">emp</span></span> are equivalent. 
+<div class="paragraph"> </div>
+
+<a name="lab87"></a><h4 class="section">Exercise: 3 stars, standard: (emp_wand_emp)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">emp_wand_emp_right</span>: <span class="id" type="var">emp</span> &#x22A2;- <span class="id" type="var">emp</span> -* <span class="id" type="var">emp</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">emp_wand_emp_left</span>: <span class="id" type="var">emp</span> -* <span class="id" type="var">emp</span> &#x22A2;- <span class="id" type="var">emp</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab88"></a><h2 class="section">List segments by magic wand</h2>
+
+</div>
+<div class="code code-space">
+
+<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VC.append</span>.<br/>
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VC.Verif_append1</span>.<br/>
+</div>
+
+<div class="doc">
+In <a href="Verif_append1.html"><span class="inlineref">Verif_append1</span></a>, we recursively defined a new separation logic
+  predicate: list segment. That predicate describes a heaplet that contains
+  a partial linked list.
+
+<div class="paragraph"> </div>
+
+  In this chapter, we learn a different way of describing partial data
+  structures&mdash;we use magic wand together with quantifiers.
+
+<div class="paragraph"> </div>
+
+  This is a natural idea. Using linked lists as an example, adding a linked
+  list to the tail of a partial linked list (or a list segment) will result
+  in a complete linked list from the head. Thus, a partial linked list
+  can be described by "the added list -* the complete list". Formally: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">wlseg</span> (<span class="id" type="var">contents</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>) : <span class="id" type="var">mpred</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">ALL</span> <span class="id" type="var">tail</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">listrep</span> <span class="id" type="var">tail</span> <span class="id" type="var">y</span> -* <span class="id" type="var">listrep</span> (<span class="id" type="var">contents</span> ++ <span class="id" type="var">tail</span>) <span class="id" type="var">x</span>.<br/>
+</div>
+
+<div class="doc">
+Here, "w" in "wlseg" represents "wand". 
+
+<div class="paragraph"> </div>
+
+   This definition is very different from <span class="inlinecode"><span class="id" type="var">lseg</span></span> and is beautifully
+   simple, and it generalizes nicely to other data structures such as trees.
+
+<div class="paragraph"> </div>
+
+   Let's prove some basic properties of <span class="inlinecode"><span class="id" type="var">wlseg</span></span>. The following lemmas
+   show how a wand expression can be introduced (<span class="inlinecode"><span class="id" type="var">emp_wlseg</span></span> and
+   <span class="inlinecode"><span class="id" type="var">singleton_wlseg</span></span>), how a wand expression can be eliminated (<span class="inlinecode"><span class="id" type="var">wlseg_list</span></span>)
+   and how two wand expressions can merge (<span class="inlinecode"><span class="id" type="var">wlseg_wlseg</span></span>).
+
+<div class="paragraph"> </div>
+
+   There are two logical operators in this definition, <span class="inlinecode">-*</span> and the
+   universal quantifier. Previously, we have learned how to prove 
+   properties about <span class="inlinecode">*</span> and <span class="inlinecode">-*</span>.  To prove properties about universal 
+   quantifiers, we will use <span class="inlinecode"><span class="id" type="var">allp_left</span></span> and <span class="inlinecode"><span class="id" type="var">allp_right</span></span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Check</span> <span class="id" type="var">allp_left</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;:&nbsp;forall&nbsp;(P&nbsp;:&nbsp;?B&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;mpred)&nbsp;(x&nbsp;:&nbsp;?B)&nbsp;(Q&nbsp;:&nbsp;mpred),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;P&nbsp;x&nbsp;&#x22A2;-&nbsp;Q&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;ALL&nbsp;x&nbsp;:&nbsp;_&nbsp;,&nbsp;P&nbsp;x&nbsp;&#x22A2;-&nbsp;Q&nbsp;&nbsp;&nbsp;*)</span><br/>
+<span class="id" type="keyword">Check</span> <span class="id" type="var">allp_right</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;&nbsp;:&nbsp;forall&nbsp;(P&nbsp;:&nbsp;mpred)&nbsp;(Q&nbsp;:&nbsp;?B&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;mpred),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(forall&nbsp;v&nbsp;:&nbsp;?B,&nbsp;P&nbsp;&#x22A2;-&nbsp;Q&nbsp;v)&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;P&nbsp;&#x22A2;-&nbsp;ALL&nbsp;x&nbsp;:&nbsp;_&nbsp;,&nbsp;Q&nbsp;x&nbsp;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+The first property of <span class="inlinecode"><span class="id" type="var">wlseg</span></span> is that we can introduce <span class="inlinecode"><span class="id" type="var">wlseg</span></span> from
+   <span class="inlinecode"><span class="id" type="var">emp</span></span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">emp_wlseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">x</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">emp</span> &#x22A2;- <span class="id" type="var">wlseg</span> [] <span class="id" type="var">x</span> <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">wlseg</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">allp_right</span>; <span class="id" type="tactic">intro</span> <span class="id" type="var">tail</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">emp_sepcon</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">simpl</span> <span class="id" type="var">app</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">derives_refl</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Next, we show that two <span class="inlinecode"><span class="id" type="var">wlseg</span></span> predicates can be merged into one. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wlseg_wlseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">wlseg</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> <span class="id" type="var">z</span> * <span class="id" type="var">wlseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">wlseg</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span> <span class="id" type="var">z</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">wlseg</span>.<br/>
+</div>
+
+<div class="doc">
+First, extract the universally quantified variable <span class="inlinecode"><span class="id" type="var">tail</span></span> on 
+    the right side. 
+</div>
+<div class="code code-tight">
+&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">allp_right</span>; <span class="id" type="tactic">intro</span> <span class="id" type="var">tail</span>.<br/>
+</div>
+
+<div class="doc">
+Next, instantiate the first quantified <span class="inlinecode"><span class="id" type="var">tail0</span></span> on the left 
+    with <span class="inlinecode"><span class="id" type="var">tail</span></span>. 
+</div>
+<div class="code code-tight">
+&nbsp;<span class="id" type="tactic">rewrite</span> → <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;<span class="id" type="tactic">apply</span> (<span class="id" type="var">allp_left</span> <span class="id" type="var">_</span> <span class="id" type="var">tail</span>).<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+</div>
+
+<div class="doc">
+Then, instantiate the other quantified <span class="inlinecode"><span class="id" type="var">tail0</span></span> on the left 
+    with <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span></span> <span class="inlinecode">++</span> <span class="inlinecode"><span class="id" type="var">tail</span></span>. 
+</div>
+<div class="code code-tight">
+&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">sepcon_comm</span>, → <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;<span class="id" type="tactic">apply</span> (<span class="id" type="var">allp_left</span> <span class="id" type="var">_</span> (<span class="id" type="var">s<sub>2</sub></span> ++ <span class="id" type="var">tail</span>)).<br/>
+&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>, <span class="id" type="var">sepcon_comm</span>.<br/>
+</div>
+
+<div class="doc">
+Finally, complete the proof with wand_frame_ver. 
+</div>
+<div class="code code-tight">
+&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">app_assoc</span>.<br/>
+&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">wand_frame_ver</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+This theorem <span class="inlinecode"><span class="id" type="var">wlseg_wlseg</span></span> shares the same form with <span class="inlinecode"><span class="id" type="var">lseg_lseg</span></span>.
+ In fact, properties about <span class="inlinecode"><span class="id" type="var">lseg</span></span> and <span class="inlinecode"><span class="id" type="var">wlseg</span></span> are very similar. 
+ The following exercises are to prove the counterparts of
+ <span class="inlinecode"><span class="id" type="var">singleton_lseg</span></span> and <span class="inlinecode"><span class="id" type="var">lseg_list</span></span>. 
+<div class="paragraph"> </div>
+
+<a name="lab89"></a><h4 class="section">Exercise: 2 stars, standard: (singleton_wlseg)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">singleton_wlseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">a</span>: <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">a</span>, <span class="id" type="var">y</span>) <span class="id" type="var">x</span> &#x22A2;- <span class="id" type="var">wlseg</span> [<span class="id" type="var">a</span>] <span class="id" type="var">x</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab90"></a><h4 class="section">Exercise: 2 stars, standard: (wlseg_list)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wlseg_list</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">wlseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">listrep</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab91"></a><h2 class="section">Proof of the <span class="inlinecode"><span class="id" type="var">append</span></span> function by <span class="inlinecode"><span class="id" type="var">wlseg</span></span></h2>
+
+<div class="paragraph"> </div>
+
+ Now, we are ready to reprove the correctness for the C program <span class="inlinecode"><span class="id" type="var">append</span></span>.  This time, we will use <span class="inlinecode"><span class="id" type="var">wlseg</span></span> to write the loop invariant. 
+<div class="paragraph"> </div>
+
+<a name="lab92"></a><h4 class="section">Exercise: 3 stars, standard: (body_append_alter2)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">body_append_alter2</span>: <span class="id" type="var">semax_body</span> <span class="id" type="var">Vprog</span> <span class="id" type="var">Gprog</span> <span class="id" type="var">f_append</span> <span class="id" type="var">append_spec</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="var">start_function</span>.<br/>
+<span class="id" type="var">forward_if</span>. <span class="comment">(*&nbsp;if&nbsp;(x&nbsp;==&nbsp;NULL)&nbsp;*)</span><br/>
+- <span class="comment">(*&nbsp;If-then&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_null</span> <span class="id" type="var">_</span> <span class="id" type="var">x</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+- <span class="comment">(*&nbsp;If-else&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> (<span class="id" type="var">listrep_nonnull</span> <span class="id" type="var">_</span> <span class="id" type="var">x</span>) <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">Intros</span> <span class="id" type="var">h</span> <span class="id" type="var">r</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;t&nbsp;=&nbsp;x;&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="id" type="var">forward</span>. <span class="comment">(*&nbsp;u&nbsp;=&nbsp;t&nbsp;<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>&nbsp;tail;&nbsp;*)</span><br/>
+</div>
+
+<div class="doc">
+Here, we use <span class="inlinecode"><span class="id" type="var">wlseg</span></span> to represent a list segment. 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="var">forward_while</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" type="var">EX</span> <span class="id" type="var">s1a</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">b</span>: <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">s1c</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">t</span>: <span class="id" type="var">val</span>, <span class="id" type="var">EX</span> <span class="id" type="var">u</span>: <span class="id" type="var">val</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">PROP</span> (<span class="id" type="var">s<sub>1</sub></span> = <span class="id" type="var">s1a</span> ++ <span class="id" type="var">b</span> :: <span class="id" type="var">s1c</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">LOCAL</span> (<span class="id" type="var">temp</span> <span class="id" type="var">_x</span> <span class="id" type="var">x</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_t</span> <span class="id" type="var">t</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_u</span> <span class="id" type="var">u</span>; <span class="id" type="var">temp</span> <span class="id" type="var">_y</span> <span class="id" type="var">y</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">SEP</span> (<span class="id" type="var">wlseg</span> <span class="id" type="var">s1a</span> <span class="id" type="var">x</span> <span class="id" type="var">t</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">b</span>, <span class="id" type="var">u</span>) <span class="id" type="var">t</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">s1c</span> <span class="id" type="var">u</span>;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">listrep</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span>))%<span class="id" type="tactic">assert</span>.<br/>
+&nbsp;+ <span class="comment">(*&nbsp;current&nbsp;assertion&nbsp;implies&nbsp;loop&nbsp;invariant&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(**&nbsp;To&nbsp;derive&nbsp;a&nbsp;loop&nbsp;invariant&nbsp;from&nbsp;the&nbsp;current&nbsp;assertion,&nbsp;the&nbsp;key<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;point&nbsp;is&nbsp;to&nbsp;introduce&nbsp;<span class="inlinecode"><span class="id" type="var">wlseg</span></span>.&nbsp;You&nbsp;may&nbsp;find&nbsp;<span class="inlinecode"><span class="id" type="var">emp_wlseg</span></span>&nbsp;helpful&nbsp;here.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;+ <span class="comment">(*&nbsp;loop&nbsp;test&nbsp;is&nbsp;safe&nbsp;to&nbsp;execute&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+&nbsp;+ <span class="comment">(*&nbsp;loop&nbsp;body&nbsp;preserves&nbsp;invariant&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(**&nbsp;Step&nbsp;forward&nbsp;through&nbsp;the&nbsp;loop&nbsp;body;&nbsp;along&nbsp;the&nbsp;way&nbsp;you'll&nbsp;need<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to&nbsp;do&nbsp;other&nbsp;transformations&nbsp;on&nbsp;the&nbsp;current&nbsp;assertion<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in&nbsp;order&nbsp;to&nbsp;uncover&nbsp;opportunities&nbsp;to&nbsp;step&nbsp;<span class="inlinecode"><span class="id" type="var">forward</span></span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;At&nbsp;the&nbsp;end&nbsp;of&nbsp;the&nbsp;loop&nbsp;body,&nbsp;you&nbsp;need&nbsp;to&nbsp;prove&nbsp;that&nbsp;a&nbsp;list<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;segment&nbsp;for&nbsp;<span class="inlinecode"><span class="id" type="var">s1a</span></span>&nbsp;and&nbsp;a&nbsp;singleton&nbsp;cell&nbsp;for&nbsp;<span class="inlinecode"><span class="id" type="var">b</span></span>&nbsp;forms&nbsp;a&nbsp;longer&nbsp;list<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;segment,&nbsp;whose&nbsp;contents&nbsp;is&nbsp;<span class="inlinecode"><span class="id" type="var">s1a</span></span> <span class="inlinecode">++</span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode">::</span> <span class="inlinecode"><span class="id" type="var">nil</span></span>.&nbsp;You&nbsp;may&nbsp;find&nbsp;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="inlinecode"><span class="id" type="var">singleton_wlseg</span></span>&nbsp;and&nbsp;<span class="inlinecode"><span class="id" type="var">wlseg_wlseg</span></span>&nbsp;useful&nbsp;there.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+&nbsp;+ <span class="comment">(*&nbsp;after&nbsp;the&nbsp;loop&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;<span class="comment">(**&nbsp;After&nbsp;you&nbsp;symbolicly&nbsp;execute&nbsp;the&nbsp;return&nbsp;command,&nbsp;you&nbsp;need&nbsp;to&nbsp;establish<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;one&nbsp;single&nbsp;linked&nbsp;list&nbsp;with&nbsp;contents&nbsp;<span class="inlinecode"><span class="id" type="var">s1a</span></span> <span class="inlinecode">++</span> <span class="inlinecode"><span class="id" type="var">b</span></span> <span class="inlinecode">::</span> <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span></span>&nbsp;from&nbsp;a&nbsp;list&nbsp;segment<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;<span class="inlinecode"><span class="id" type="var">s1a</span></span>,&nbsp;a&nbsp;singleton&nbsp;cell&nbsp;for&nbsp;<span class="inlinecode"><span class="id" type="var">b</span></span>&nbsp;and&nbsp;another&nbsp;linked&nbsp;list&nbsp;for&nbsp;<span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span></span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You&nbsp;may&nbsp;find&nbsp;<span class="inlinecode"><span class="id" type="var">singleton_wlseg</span></span>&nbsp;and&nbsp;<span class="inlinecode"><span class="id" type="var">wlseg_list</span></span>&nbsp;useful&nbsp;there.&nbsp;*)</span><br/>
+&nbsp;&nbsp;<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">admit</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab93"></a><h2 class="section">The general idea: magic wand as frame</h2>
+
+<div class="paragraph"> </div>
+
+ Let's review the proof script above. Before the loop, we first derive
+<span class="inlinecode"><span class="id" type="var">wlseg</span></span> <span class="inlinecode">[]</span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">x</span></span> from <span class="inlinecode"><span class="id" type="var">emp</span></span>. After every iteration of the loop body, we merge
+a piece of singleton list segment <span class="inlinecode"><span class="id" type="var">wlseg</span></span> <span class="inlinecode">[<span class="id" type="var">b</span>]</span> <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode"><span class="id" type="var">u</span></span> into it. When exiting the
+loop, we get <span class="inlinecode"><span class="id" type="var">wlseg</span></span> <span class="inlinecode">[<span class="id" type="var">s1a</span>]</span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">t</span></span> where <span class="inlinecode"><span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode">=</span> <span class="inlinecode"><span class="id" type="var">s1a</span></span> <span class="inlinecode">++</span> <span class="inlinecode">[<span class="id" type="var">b</span>]</span>. Eventually, this
+list segment is merged with a tail <span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode">([<span class="id" type="var">b</span>]</span> <span class="inlinecode">++</span> <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span>)</span> <span class="inlinecode"><span class="id" type="var">t</span></span>, which results in
+<span class="inlinecode"><span class="id" type="var">listrep</span></span> <span class="inlinecode">(<span class="id" type="var">s<sub>1</sub></span></span> <span class="inlinecode">++</span> <span class="inlinecode"><span class="id" type="var">s<sub>2</sub></span>)</span> <span class="inlinecode"><span class="id" type="var">x</span></span>. 
+<div class="paragraph"> </div>
+
+ From the place where the list segment is introduced in the proof, to the
+place where the list segment is eliminated by merging, the C program never
+modifies the sub-memory described by that <span class="inlinecode"><span class="id" type="var">wlseg</span></span> predicate. In separation
+logic, such a separating conjunct is usually called a "frame". Thus, the general
+idea here is to use a wand expression to describe a partial data structure
+and this wand expression will act as a frame in program verification. 
+<div class="paragraph"> </div>
+
+ In the proof of <span class="inlinecode"><span class="id" type="var">body_append_alter2</span></span>, we only need four of <span class="inlinecode"><span class="id" type="var">wlseg</span></span>'s
+properties: <span class="inlinecode"><span class="id" type="var">emp_wlseg</span></span>, <span class="inlinecode"><span class="id" type="var">singleton_wlseg</span></span>, <span class="inlinecode"><span class="id" type="var">wlseg_wlseg</span></span> and <span class="inlinecode"><span class="id" type="var">wlseg_list</span></span>.
+They are used to introduce, merge and eliminate <span class="inlinecode"><span class="id" type="var">wlseg</span></span> predicates. Here are
+some general patterns beyond these specific rules. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wandQ_frame_elim_mpred</span>: <span style='font-size:120%;'>&forall;</span>{<span class="id" type="var">A</span>: <span class="id" type="keyword">Type</span>} (<span class="id" type="var">P</span> <span class="id" type="var">Q</span>: <span class="id" type="var">A</span> → <span class="id" type="var">mpred</span>) (<span class="id" type="var">a</span>: <span class="id" type="var">A</span>),<br/>
+&nbsp;&nbsp;(<span class="id" type="var">ALL</span> <span class="id" type="var">x</span> : <span class="id" type="var">A</span>, <span class="id" type="var">P</span> <span class="id" type="var">x</span> -* <span class="id" type="var">Q</span> <span class="id" type="var">x</span>) * <span class="id" type="var">P</span> <span class="id" type="var">a</span> &#x22A2;- <span class="id" type="var">Q</span> <span class="id" type="var">a</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> → <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> (<span class="id" type="var">allp_left</span> <span class="id" type="var">_</span> <span class="id" type="var">a</span>).<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">derives_refl</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+"ver" in the name of the next lemma stands for "vertical composition"
+   of wand frames.   One wand-frame is nested inside another.  
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wandQ_frame_ver_mpred</span>: <span style='font-size:120%;'>&forall;</span>{<span class="id" type="var">A</span>: <span class="id" type="keyword">Type</span>} (<span class="id" type="var">P</span> <span class="id" type="var">Q</span> <span class="id" type="var">R</span>: <span class="id" type="var">A</span> → <span class="id" type="var">mpred</span>),<br/>
+&nbsp;&nbsp;(<span class="id" type="var">ALL</span> <span class="id" type="var">x</span> : <span class="id" type="var">A</span>, <span class="id" type="var">P</span> <span class="id" type="var">x</span> -* <span class="id" type="var">Q</span> <span class="id" type="var">x</span>) * (<span class="id" type="var">ALL</span> <span class="id" type="var">x</span>: <span class="id" type="var">A</span>, <span class="id" type="var">Q</span> <span class="id" type="var">x</span> -* <span class="id" type="var">R</span> <span class="id" type="var">x</span>) &#x22A2;- <span class="id" type="var">ALL</span> <span class="id" type="var">x</span>: <span class="id" type="var">A</span>, <span class="id" type="var">P</span> <span class="id" type="var">x</span> -* <span class="id" type="var">R</span> <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">allp_right</span>; <span class="id" type="tactic">intro</span> <span class="id" type="var">a</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> → <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> (<span class="id" type="var">allp_left</span> <span class="id" type="var">_</span> <span class="id" type="var">a</span>).<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">sepcon_comm</span>, → <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> (<span class="id" type="var">allp_left</span> <span class="id" type="var">_</span> <span class="id" type="var">a</span>).<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>, <span class="id" type="var">sepcon_comm</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">wand_frame_ver</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+<a name="lab94"></a><h2 class="section">Case study: list segments for linked list box</h2>
+
+<div class="paragraph"> </div>
+
+ In the following exercise, you are going to apply the magic-wand-as-frame
+method on a slightly different data structure.
+
+<div class="paragraph"> </div>
+
+   Consider the following C function, <span class="inlinecode"><span class="id" type="var">append2</span></span>.
+<pre>
+struct list * append2 (struct list * x, struct list * y) {
+  struct list **retp, **curp;
+  retp = &amp; x;
+  curp = &amp; x;
+  while ( *curp != NULL ) {
+    curp = &amp; (( *curp ) <span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span> tail);
+  }
+  *curp = y;
+  return *retp;
+}
+</pre>
+
+<div class="paragraph"> </div>
+
+ In comparison, this is <span class="inlinecode"><span class="id" type="var">append</span></span>.
+<pre>
+struct list *append (struct list *x, struct list *y) {
+  struct list *t, *u;
+  if (x==NULL)
+    return y;
+  else {
+    t = x;
+    u = t<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>tail;
+    while (u!=NULL) {
+      t = u;
+      u = t<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>tail;
+    }
+    t<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>tail = y;
+    return x;
+  }
+}
+</pre>
+
+<div class="paragraph"> </div>
+
+  In <span class="inlinecode"><span class="id" type="var">append</span></span>, <span class="inlinecode"><span class="id" type="var">u</span></span> always equals <span class="inlinecode"><span class="id" type="var">t</span></span> <span class="inlinecode">→</span> <span class="inlinecode"><span class="id" type="var">tail</span></span> after every iteration. When
+  exiting the loop, the value of <span class="inlinecode"><span class="id" type="var">u</span></span> is always null; that is not important.
+  More important is the address where the null value is loaded from. A new 
+  value will be stored into that location in memory. The program variable
+  <span class="inlinecode"><span class="id" type="var">t</span></span> is used to remember that address. 
+
+<div class="paragraph"> </div>
+
+  The C function <span class="inlinecode"><span class="id" type="var">append2</span></span> implements linked-list append in an
+  alternative way.  In this function, <span class="inlinecode"><span class="id" type="var">curp</span></span>'s value is not an address
+  in the linked list. Instead, it records where a linked list address is
+  stored in memory. Specifically, when <span class="inlinecode"><span class="id" type="var">curp</span></span> points the head
+  pointer <span class="inlinecode"><span class="id" type="var">x</span></span>, the value of <span class="inlinecode"><span class="id" type="var">curp</span></span> is the address of <span class="inlinecode"><span class="id" type="var">x</span></span>.  When <span class="inlinecode"><span class="id" type="var">curp</span></span>
+  points to some intermediate linked list node, the value of <span class="inlinecode"><span class="id" type="var">curp</span></span> is
+  the predecessor node's <span class="inlinecode"><span class="id" type="var">tail</span></span> field address. Using this implementation, 
+  we do not need to test whether <span class="inlinecode"><span class="id" type="var">x</span></span> is null in the beginning.
+
+<div class="paragraph"> </div>
+
+  The following separation logic predicate defines this data structure. 
+
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">t_list_box</span> := <span class="id" type="var">tptr</span> <span class="id" type="var">t_list</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">listboxrep</span> (<span class="id" type="var">contents</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span>: <span class="id" type="var">val</span>) :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">EX</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>, <span class="id" type="var">data_at</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list_box</span> <span class="id" type="var">y</span> <span class="id" type="var">x</span> * <span class="id" type="var">listrep</span> <span class="id" type="var">contents</span> <span class="id" type="var">x</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">lbseg</span> (<span class="id" type="var">contents</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>) :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">ALL</span> <span class="id" type="var">tail</span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>, <span class="id" type="var">listboxrep</span> <span class="id" type="var">tail</span> <span class="id" type="var">y</span> -* <span class="id" type="var">listboxrep</span> (<span class="id" type="var">contents</span> ++ <span class="id" type="var">tail</span>) <span class="id" type="var">x</span>.<br/>
+</div>
+
+<div class="doc">
+Previously, we have shown that we can introduce, eliminate and merge
+  wand expressions by proving <span class="inlinecode"><span class="id" type="var">emp_wlseg</span></span>, <span class="inlinecode"><span class="id" type="var">singleton_wlseg</span></span>, <span class="inlinecode"><span class="id" type="var">wlseg_list</span></span>
+  and <span class="inlinecode"><span class="id" type="var">wlseg_wlseg</span></span>. Now, your task is to prove <span class="inlinecode"><span class="id" type="var">lbseg</span></span>'s properties. Hint:
+  proving <span class="inlinecode"><span class="id" type="var">wlseg</span></span>'s properties and proving <span class="inlinecode"><span class="id" type="var">lbseg</span></span>'s properties should be very
+  similar. 
+<div class="paragraph"> </div>
+
+<a name="lab95"></a><h4 class="section">Exercise: 1 star, standard: (emp_lbseg)</h4>
+ Introducing a wand expression, <span class="inlinecode"><span class="id" type="var">lbseg</span></span>, from <span class="inlinecode"><span class="id" type="var">emp</span></span>. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">emp_lbseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">x</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">emp</span> &#x22A2;- <span class="id" type="var">lbseg</span> [] <span class="id" type="var">x</span> <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab96"></a><h4 class="section">Exercise: 2 stars, standard: (lbseg_lbseg)</h4>
+ Merging two wand expressions. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">lbseg_lbseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span> <span class="id" type="var">z</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">lbseg</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> <span class="id" type="var">z</span> * <span class="id" type="var">lbseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">lbseg</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span> <span class="id" type="var">z</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab97"></a><h4 class="section">Exercise: 2 stars, standard: (listbox_lbseg)</h4>
+ Eliminating a wand expression. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">listbox_lbseg</span>: <span style='font-size:120%;'>&forall;</span>(<span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">s<sub>2</sub></span>: <span class="id" type="var">list</span> <span class="id" type="var">val</span>) (<span class="id" type="var">x</span> <span class="id" type="var">y</span>: <span class="id" type="var">val</span>),<br/>
+&nbsp;&nbsp;<span class="id" type="var">lbseg</span> <span class="id" type="var">s<sub>1</sub></span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> * <span class="id" type="var">listboxrep</span> <span class="id" type="var">s<sub>2</sub></span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">listboxrep</span> (<span class="id" type="var">s<sub>1</sub></span> ++ <span class="id" type="var">s<sub>2</sub></span>) <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab98"></a><h2 class="section">Comparison and connection: <span class="inlinecode"><span class="id" type="var">lseg</span></span> vs. <span class="inlinecode"><span class="id" type="var">wlseg</span></span></h2>
+
+<div class="paragraph"> </div>
+
+ We have demonstrated two different approaches to define a
+  separation logic predicate for list segments. In <a href="Verif_append1.html"><span class="inlineref">Verif_append1</span></a>
+  we define it using recursive definition over the list. In this chapter,
+  we use a quantifed magic wand expression.  It is natural to ask: what 
+  is the relation between <span class="inlinecode"><span class="id" type="var">lseg</span></span> and <span class="inlinecode"><span class="id" type="var">wlseg</span></span>? Are they equivalent to each
+  other? They following theorems can offer a brief answer. 
+<div class="paragraph"> </div>
+
+ First of all, recursive defined <span class="inlinecode"><span class="id" type="var">lseg</span></span> is a logically stronger 
+  predicate than <span class="inlinecode"><span class="id" type="var">wlseg</span></span>. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">lseg2wlseg</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span>, <span class="id" type="var">lseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">wlseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">wlseg</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">allp_right</span>; <span class="id" type="tactic">intros</span> <span class="id" type="var">tail</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">sep_apply</span> (<span class="id" type="var">lseg_list</span> <span class="id" type="var">s</span> <span class="id" type="var">tail</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span>).<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">derives_refl</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+In some special cases, <span class="inlinecode"><span class="id" type="var">wlseg</span></span> derives <span class="inlinecode"><span class="id" type="var">lseg</span></span> as well. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wlseg2lseg_nullval</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span> <span class="id" type="var">x</span>, <span class="id" type="var">wlseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span> &#x22A2;- <span class="id" type="var">lseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">wlseg</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">allp_left</span> <span class="id" type="keyword">with</span> (@<span class="id" type="var">nil</span> <span class="id" type="var">val</span>).<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">listrep</span> <span class="id" type="tactic">at</span> 1.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">prop_true_andp</span> <span class="id" type="tactic">by</span> <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">app_nil_end</span>.<br/>
+</div>
+
+<div class="doc">
+The proof goal now has the form: a wand expression derives some
+  wand-free assertion.  Usually, this is a tough task because there is
+  no good way to eliminate magic wand on left side. But this proof
+  goal is special. We can add an extra separating conjunct <span class="inlinecode"><span class="id" type="var">emp</span></span> to
+  the left side and use <span class="inlinecode"><span class="id" type="var">modus_ponens_wand</span></span> to eliminate wand. 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- (<span class="id" type="var">emp_sepcon</span> (<span class="id" type="var">emp</span> -* <span class="id" type="var">listrep</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span>)).<br/>
+&nbsp;&nbsp;<span class="id" type="var">sep_apply</span> (<span class="id" type="var">modus_ponens_wand</span> <span class="id" type="var">emp</span> (<span class="id" type="var">listrep</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span>)).<br/>
+</div>
+
+<div class="doc">
+Then, easy! 
+</div>
+<div class="code code-tight">
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">listrep2lseg</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+Combining these two lemmas above together, we know that 
+  <span class="inlinecode"><span class="id" type="var">wlseg</span></span>-to-null equals <span class="inlinecode"><span class="id" type="var">lseg</span></span>. 
+</div>
+<div class="code code-tight">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wlseg_nullval</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span> <span class="id" type="var">x</span>, <span class="id" type="var">wlseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span> = <span class="id" type="var">lseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">pred_ext</span>.<br/>
+&nbsp;&nbsp;+ <span class="id" type="tactic">apply</span> <span class="id" type="var">wlseg2lseg_nullval</span>.<br/>
+&nbsp;&nbsp;+ <span class="id" type="tactic">apply</span> <span class="id" type="var">lseg2wlseg</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Corollary</span> <span class="id" type="var">wlseg_listrep_equiv</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span> <span class="id" type="var">x</span>, <span class="id" type="var">wlseg</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span> <span class="id" type="var">nullval</span> = <span class="id" type="var">listrep</span> <span class="id" type="var">s</span> <span class="id" type="var">x</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> <span class="id" type="var">wlseg_nullval</span>, <span class="id" type="var">lseg_listrep_equiv</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">reflexivity</span>.<br/>
+<span class="id" type="keyword">Qed</span>.<br/>
+</div>
+
+<div class="doc">
+However, <span class="inlinecode"><span class="id" type="var">wlseg</span></span> does not derive <span class="inlinecode"><span class="id" type="var">lseg</span></span> in general. As mentioned
+  above, to eliminate magic wand on the left side is hard. When 
+  <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode">≠</span> <span class="inlinecode"><span class="id" type="var">nullval</span></span>, we cannot instantiate the universally quantified variable
+  <span class="inlinecode"><span class="id" type="var">tail</span></span> inside <span class="inlinecode">(<span class="id" type="var">wlseg</span></span> <span class="inlinecode"><span class="id" type="var">s</span></span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span>)</span> to get the form <span class="inlinecode"><span class="id" type="var">emp</span></span> <span class="inlinecode">-*</span> <span class="inlinecode"><span class="id" type="var">_</span></span>.  The
+  following is a counterexample of the general entailment from <span class="inlinecode"><span class="id" type="var">wlseg</span></span>
+  to <span class="inlinecode"><span class="id" type="var">lseg</span></span>.  On one hand, it is obvious that
+  <span class="inlinecode"><span class="id" type="var">data_at_</span></span> <span class="inlinecode"><span class="id" type="var">Tsh</span></span> <span class="inlinecode"><span class="id" type="var">t_list</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode">&#x22A2;/-</span> <span class="inlinecode"><span class="id" type="var">lseg</span></span> <span class="inlinecode">[<span class="id" type="var">a</span>]</span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span>. But on the hand, 
+  <span class="inlinecode"><span class="id" type="var">data_at_</span></span> <span class="inlinecode"><span class="id" type="var">Tsh</span></span> <span class="inlinecode"><span class="id" type="var">t_list</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span> <span class="inlinecode">&#x22A2;-</span> <span class="inlinecode"><span class="id" type="var">wlseg</span></span> <span class="inlinecode">[<span class="id" type="var">a</span>]</span> <span class="inlinecode"><span class="id" type="var">x</span></span> <span class="inlinecode"><span class="id" type="var">y</span></span>. See the following theorem: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">wlseg_weird</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">a</span> <span class="id" type="var">x</span> <span class="id" type="var">y</span>,<br/>
+&nbsp;&nbsp;<span class="id" type="var">data_at_</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> <span class="id" type="var">y</span> &#x22A2;- <span class="id" type="var">wlseg</span> [<span class="id" type="var">a</span>] <span class="id" type="var">x</span> <span class="id" type="var">y</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">unfold</span> <span class="id" type="var">wlseg</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">apply</span> <span class="id" type="var">allp_right</span>; <span class="id" type="tactic">intros</span> <span class="id" type="var">s</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">rewrite</span> &lt;- <span class="id" type="var">wand_sepcon_adjoint</span>.<br/>
+&nbsp;&nbsp;<span class="id" type="tactic">destruct</span> <span class="id" type="var">s</span>.<br/>
+&nbsp;&nbsp;+ <span class="id" type="tactic">unfold</span> <span class="id" type="var">listrep</span> <span class="id" type="tactic">at</span> 1.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="tactic">destruct</span> <span class="id" type="var">H</span> <span class="id" type="keyword">as</span> [<span class="id" type="var">H</span> <span class="id" type="var">_</span>].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">contradiction</span>.<br/>
+&nbsp;&nbsp;+ <span class="id" type="tactic">unfold</span> <span class="id" type="var">listrep</span> <span class="id" type="tactic">at</span> 1; <span class="id" type="var">fold</span> <span class="id" type="var">listrep</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">Intros</span> <span class="id" type="var">u</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">sep_apply</span> (<span class="id" type="var">data_at_conflict</span> <span class="id" type="var">Tsh</span> <span class="id" type="var">t_list</span> (<span class="id" type="var">default_val</span> <span class="id" type="var">t_list</span>) (<span class="id" type="var">v</span>, <span class="id" type="var">u</span>) <span class="id" type="var">y</span>); <span class="id" type="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">entailer</span>!.<br/>
+<span class="id" type="keyword">Qed</span>.<br/><hr class='doublespaceincode'/>
+<span class="comment">(*&nbsp;Wed&nbsp;Apr&nbsp;24&nbsp;08:45:37&nbsp;EDT&nbsp;2019&nbsp;*)</span><br/>
+</div>
+</div>
+
+
+
+</div>
+
+</body>
+</html>

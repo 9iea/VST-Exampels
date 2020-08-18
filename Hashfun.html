@@ -1,0 +1,400 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link href="common/css/sf.css" rel="stylesheet" type="text/css"/>
+<title>Hashfun: Functional model of hash tables</title>
+</head>
+<link href="common/jquery-ui/jquery-ui.css" rel="stylesheet">
+<script src="common/jquery-ui/external/jquery/jquery.js"></script>
+<script src="common/jquery-ui/jquery-ui.js"></script>
+<script src="common/toggleproofs.js"></script>
+<link href="common/css/vc.css" rel="stylesheet" type="text/css"/>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+<a href='https://www.cis.upenn.edu/~bcpierce/sf/current/index.html'>
+<img src='common/media/image/sf_logo_sm.png'></a>
+</br><a href='index.html'>  <span class='booktitleinheader'>Volume 5beta: Verifiable C</span><br></br>
+<ul id='menu'>
+   <a href='toc.html'><li class='section_name'>Table of Contents</li></a>
+   <a href='coqindex.html'><li class='section_name'>Index</li></a>
+</ul>
+</a></div>
+
+<div id="main">
+
+<h1 class="libtitle">Hashfun<span class="subtitle">Functional model of hash tables</span></h1>
+
+
+<div class="doc">
+
+<div class="paragraph"> </div>
+
+<a name="lab113"></a><h2 class="section">This C program, <span class="inlinecode"><span class="id" type="var">hash.c</span></span>, implements a hash table with</h2>
+
+   external chaining.  See <a href="http://www.cs.princeton.edu/~appel/HashTables.pdf"><span class="inlineref">http://www.cs.princeton.edu/~appel/HashTables.pdf</span></a>
+   for an introduction to hash tables.  
+<div class="paragraph"> </div>
+
+
+<div class="paragraph"> </div>
+
+<pre>
+#include &lt;stddef.h&gt;
+
+extern void * malloc (size_t n);
+extern void exit(int n);
+extern size_t strlen(const char *str);
+extern char *strcpy(char *dest, const char *src);
+extern int strcmp(const char *str1, const char *str2);
+
+unsigned int hash (char *s) {
+  unsigned int n=0;
+  unsigned int i=0;
+  int c=s[i];
+  while (c) {
+    n = n*65599u+(unsigned)c;
+    i++;
+    c=s[i];
+  }
+  return n;
+}
+
+struct cell {
+  char *key;
+  unsigned int count;
+  struct cell *next;
+};
+
+enum {N = 109};
+
+struct hashtable {
+  struct cell *buckets[N];
+};
+
+char *copy_string (char *s) {
+  int i,n = strlen(s)+1;
+  char *p = malloc(n);
+  if (!p) exit(1);
+  strcpy(p,s);
+  return p;
+}
+
+struct hashtable *new_table (void) {
+  int i;
+  struct hashtable *p = (struct hashtable * )malloc(sizeof(struct hashtable));
+  if (!p) exit(1);
+  for (i=0; i&lt;N; i++) p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>buckets[i]=NULL;
+  return p;
+}  
+
+struct cell *new_cell (char *key, int count, struct cell *next) {
+  struct cell *p = (struct cell * )malloc(sizeof(struct cell));
+  if (!p) exit(1);
+  p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>key = copy_string(key);
+  p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>count = count;
+  p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>next = next;
+  return p;
+}
+
+unsigned int get (struct hashtable *table, char *s) {
+  unsigned int h = hash(s);
+  unsigned int b = h % N;
+  struct cell *p = table<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>buckets[b];
+  while (p) {
+    if (strcmp(p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>key, s)==0)
+      return p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>count;
+    p=p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>next;
+  }
+  return 0;
+}
+
+void incr_list (struct cell **r<sub>0</sub>, char *s) {
+  struct cell *p, **r;
+  for(r=r<sub>0</sub>; ; r=&amp;p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>next) {
+    p = *r;
+    if (!p) {
+      *r = new_cell(s,1,NULL);
+      return;
+    }
+    if (strcmp(p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>key, s)==0) {
+      p<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>count++;
+      return;
+    }
+  }
+}  
+
+void incr (struct hashtable *table, char *s) {
+  unsigned int h = hash(s);
+  unsigned int b = h % N;
+  incr_list (&amp; table<span class="nowrap"><span style='font-size:85%;'><span style='vertical-align:5%;'><span style='letter-spacing:-.2em;'>-</span></span>&gt;</span></span>buckets[b], s);
+}
+</pre>
+
+<div class="paragraph"> </div>
+
+<a name="lab114"></a><h2 class="section">A functional model</h2>
+
+<div class="paragraph"> </div>
+
+ Before we prove the C program correct, we write a functional
+ program that models its behavior as closely as possible.  
+ The functional program won't be (average) constant time per access,
+ like the C program, because it takes linear time to get the nth
+ element of a list, while the C program can subscript an array in
+ constant time.  But we are not worried about the execution time
+ of the functional program; only that it serve as a model
+ for specifying the C program. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Require</span> <span class="id" type="keyword">Import</span> <span class="id" type="var">VST.floyd.functional_base</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Instance</span> <span class="id" type="var">EqDec_string</span>: <span class="id" type="var">EqDec</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span>) := <span class="id" type="var">list_eq_dec</span> <span class="id" type="var">Byte.eq_dec</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">hashfun_aux</span> (<span class="id" type="var">h</span>: <span class="id" type="var">Z</span>) (<span class="id" type="var">s</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>) : <span class="id" type="var">Z</span> :=<br/>
+&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">s</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;| <span class="id" type="var">nil</span> ⇒ <span class="id" type="var">h</span><br/>
+&nbsp;| <span class="id" type="var">c</span> :: <span class="id" type="var">s'</span> ⇒<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">hashfun_aux</span> ((<span class="id" type="var">h</span> * 65599 + <span class="id" type="var">Byte.signed</span> <span class="id" type="var">c</span>) <span class="id" type="var">mod</span> <span class="id" type="var">Int.modulus</span>) <span class="id" type="var">s'</span><br/>
+<span class="id" type="keyword">end</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">hashfun</span> (<span class="id" type="var">s</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>) := <span class="id" type="var">hashfun_aux</span> 0 <span class="id" type="var">s</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">hashtable_contents</span> := <span class="id" type="var">list</span> (<span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>)).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">N</span> := 109.<br/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">N_eq</span> : <span class="id" type="var">N</span> = 109.<br/>
+<span class="id" type="keyword">Proof</span>. <span class="id" type="tactic">reflexivity</span>. <span class="id" type="keyword">Qed</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="var">Rewrite</span> <span class="id" type="var">N_eq</span> : <span class="id" type="var">rep_omega</span>.<br/>
+<span class="id" type="keyword">Global</span> <span class="id" type="var">Opaque</span> <span class="id" type="var">N</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">empty_table</span> : <span class="id" type="var">hashtable_contents</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">list_repeat</span> (<span class="id" type="var">Z.to_nat</span> <span class="id" type="var">N</span>) <span class="id" type="var">nil</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">list_get</span> (<span class="id" type="var">s</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>) (<span class="id" type="var">al</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>)) : <span class="id" type="var">Z</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">al</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;| (<span class="id" type="var">k</span>,<span class="id" type="var">i</span>) :: <span class="id" type="var">al'</span> ⇒ <span class="id" type="keyword">if</span> <span class="id" type="var">eq_dec</span> <span class="id" type="var">s</span> <span class="id" type="var">k</span> <span class="id" type="keyword">then</span> <span class="id" type="var">i</span> <span class="id" type="keyword">else</span> <span class="id" type="var">list_get</span> <span class="id" type="var">s</span> <span class="id" type="var">al'</span><br/>
+&nbsp;| <span class="id" type="var">nil</span> ⇒ 0<br/>
+&nbsp;<span class="id" type="keyword">end</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Fixpoint</span> <span class="id" type="var">list_incr</span> (<span class="id" type="var">s</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>) (<span class="id" type="var">al</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:  <span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>) :=<br/>
+&nbsp;&nbsp;<span class="id" type="keyword">match</span> <span class="id" type="var">al</span> <span class="id" type="keyword">with</span><br/>
+&nbsp;| (<span class="id" type="var">k</span>,<span class="id" type="var">i</span>) :: <span class="id" type="var">al'</span> ⇒ <span class="id" type="keyword">if</span> <span class="id" type="var">eq_dec</span> <span class="id" type="var">s</span> <span class="id" type="var">k</span> <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="keyword">then</span> (<span class="id" type="var">k</span>, <span class="id" type="var">i</span> +1)::<span class="id" type="var">al'</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="keyword">else</span> (<span class="id" type="var">k</span>,<span class="id" type="var">i</span>)::<span class="id" type="var">list_incr</span> <span class="id" type="var">s</span> <span class="id" type="var">al'</span><br/>
+&nbsp;| <span class="id" type="var">nil</span> ⇒ (<span class="id" type="var">s</span>, 1)::<span class="id" type="var">nil</span><br/>
+&nbsp;<span class="id" type="keyword">end</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">hashtable_get</span>  (<span class="id" type="var">s</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>) (<span class="id" type="var">contents</span>: <span class="id" type="var">hashtable_contents</span>) : <span class="id" type="var">Z</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">list_get</span> <span class="id" type="var">s</span> (<span class="id" type="var">Znth</span> (<span class="id" type="var">hashfun</span> <span class="id" type="var">s</span> <span class="id" type="var">mod</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">contents</span>)) <span class="id" type="var">contents</span>).<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Definition</span> <span class="id" type="var">hashtable_incr</span> (<span class="id" type="var">s</span>: <span class="id" type="var">list</span> <span class="id" type="var">byte</span>) (<span class="id" type="var">contents</span>: <span class="id" type="var">hashtable_contents</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <span class="id" type="var">hashtable_contents</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="keyword">let</span> <span class="id" type="var">h</span> := <span class="id" type="var">hashfun</span> <span class="id" type="var">s</span> <span class="id" type="var">mod</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">contents</span>)<br/>
+&nbsp;&nbsp;<span class="id" type="keyword">in</span> <span class="id" type="keyword">let</span> <span class="id" type="var">al</span> := <span class="id" type="var">Znth</span> <span class="id" type="var">h</span> <span class="id" type="var">contents</span><br/>
+&nbsp;&nbsp;<span class="id" type="keyword">in</span> <span class="id" type="var">upd_Znth</span> <span class="id" type="var">h</span> <span class="id" type="var">contents</span> (<span class="id" type="var">list_incr</span> <span class="id" type="var">s</span> <span class="id" type="var">al</span>).<br/>
+</div>
+
+<div class="doc">
+<a name="lab115"></a><h4 class="section">Exercise: 2 stars, standard (hashfun_inrange)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">hashfun_inrange</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">s</span>, 0 ≤ <span class="id" type="var">hashfun</span> <span class="id" type="var">s</span> ≤ <span class="id" type="var">Int.max_unsigned</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab116"></a><h4 class="section">Exercise: 1 star, standard (hashfun_get_unfold)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">hashtable_get_unfold</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">sigma</span> (<span class="id" type="var">cts</span>: <span class="id" type="var">list</span> (<span class="id" type="var">list</span> (<span class="id" type="var">list</span> <span class="id" type="var">byte</span> * <span class="id" type="var">Z</span>) * <span class="id" type="var">val</span>)),<br/>
+&nbsp;<span class="id" type="var">hashtable_get</span> <span class="id" type="var">sigma</span> (<span class="id" type="var">map</span> <span class="id" type="var">fst</span> <span class="id" type="var">cts</span>) =<br/>
+&nbsp;&nbsp;<span class="id" type="var">list_get</span> <span class="id" type="var">sigma</span> (<span class="id" type="var">Znth</span> (<span class="id" type="var">hashfun</span> <span class="id" type="var">sigma</span> <span class="id" type="var">mod</span> (<span class="id" type="var">Zlength</span> <span class="id" type="var">cts</span>)) (<span class="id" type="var">map</span> <span class="id" type="var">fst</span> <span class="id" type="var">cts</span>)).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab117"></a><h4 class="section">Exercise: 2 stars, standard (Zlength_hashtable_incr)</h4>
+
+</div>
+<div class="code code-space">
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">Zlength_hashtable_incr</span>:<br/>
+&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">sigma</span> <span class="id" type="var">cts</span>, <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 &lt; <span class="id" type="var">Zlength</span> <span class="id" type="var">cts</span> → <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">Zlength</span> (<span class="id" type="var">hashtable_incr</span> <span class="id" type="var">sigma</span> <span class="id" type="var">cts</span>) = <span class="id" type="var">Zlength</span> <span class="id" type="var">cts</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">Hint</span> <span class="id" type="var">Rewrite</span> <span class="id" type="var">Zlength_hashtable_incr</span> <span class="id" type="keyword">using</span> <span class="id" type="var">list_solve</span> : <span class="id" type="var">sublist</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab118"></a><h4 class="section">Exercise: 3 stars, standard (hashfun_snoc)</h4>
+
+</div>
+<div class="code code-space">
+
+<br/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">Int_repr_eq_mod</span>:<br/>
+&nbsp;&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">a</span>,  <span class="id" type="var">Int.repr</span> (<span class="id" type="var">a</span> <span class="id" type="var">mod</span> <span class="id" type="var">Int.modulus</span>) = <span class="id" type="var">Int.repr</span> <span class="id" type="var">a</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="id" type="keyword">Print</span> <span class="id" type="var">Int.eqm</span>. <span class="comment">(*&nbsp;This&nbsp;is&nbsp;a&nbsp;hint&nbsp;about&nbsp;how&nbsp;to&nbsp;prove&nbsp;the&nbsp;lemma&nbsp;*)</span><br/>
+<span class="id" type="var">Search</span> <span class="id" type="var">Int.eqm</span>. <span class="comment">(*&nbsp;This&nbsp;is&nbsp;a&nbsp;hint&nbsp;about&nbsp;how&nbsp;to&nbsp;prove&nbsp;the&nbsp;lemma&nbsp;*)</span><br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<div class="doc">
+Use <span class="inlinecode"><span class="id" type="var">Int_repr_eq_mod</span></span> in the proof of <span class="inlinecode"><span class="id" type="var">hashfun_snoc</span></span>. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">hashfun_snoc</span>:<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">sigma</span> <span class="id" type="var">h</span> <span class="id" type="var">lo</span> <span class="id" type="var">i</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;0 ≤ <span class="id" type="var">lo</span> →<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">lo</span> ≤ <span class="id" type="var">i</span> &lt; <span class="id" type="var">Zlength</span> <span class="id" type="var">sigma</span> →<br/>
+&nbsp;&nbsp;<span class="id" type="var">Int.repr</span> (<span class="id" type="var">hashfun_aux</span> <span class="id" type="var">h</span> (<span class="id" type="var">sublist</span> <span class="id" type="var">lo</span> (<span class="id" type="var">i</span> + 1) <span class="id" type="var">sigma</span>)) =<br/>
+&nbsp;&nbsp;<span class="id" type="var">Int.repr</span> (<span class="id" type="var">hashfun_aux</span> <span class="id" type="var">h</span> (<span class="id" type="var">sublist</span> <span class="id" type="var">lo</span> <span class="id" type="var">i</span> <span class="id" type="var">sigma</span>) * 65599 + <span class="id" type="var">Byte.signed</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">sigma</span>)).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab119"></a><h2 class="section">Functional model satisfies the high-level specification</h2>
+
+<div class="paragraph"> </div>
+
+ The purpose of a hash table is to implement a finite mapping,
+  (a finite function) from keys to values.  We claim that the
+  functional model (<span class="inlinecode"><span class="id" type="var">empty_table</span>,</span> <span class="inlinecode"><span class="id" type="var">hashtable_get</span>,</span> <span class="inlinecode"><span class="id" type="var">hashtable_incr</span></span>)
+  correctly implements the appropriate operations on the abstract
+  data type of finite functions.
+
+<div class="paragraph"> </div>
+
+  We formalize that statement by defining a Module Type: 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Module</span> <span class="id" type="keyword">Type</span> <span class="id" type="var">COUNT_TABLE</span>.<br/>
+&nbsp;<span class="id" type="keyword">Parameter</span> <span class="id" type="var">table</span>: <span class="id" type="keyword">Type</span>.<br/>
+&nbsp;<span class="id" type="keyword">Parameter</span> <span class="id" type="var">key</span> : <span class="id" type="keyword">Type</span>.<br/>
+&nbsp;<span class="id" type="keyword">Parameter</span> <span class="id" type="var">empty</span>: <span class="id" type="var">table</span>.<br/>
+&nbsp;<span class="id" type="keyword">Parameter</span> <span class="id" type="var">get</span>: <span class="id" type="var">key</span> → <span class="id" type="var">table</span> → <span class="id" type="var">Z</span>.<br/>
+&nbsp;<span class="id" type="keyword">Parameter</span> <span class="id" type="var">incr</span>: <span class="id" type="var">key</span> → <span class="id" type="var">table</span> → <span class="id" type="var">table</span>.<br/>
+&nbsp;<span class="id" type="keyword">Axiom</span> <span class="id" type="var">gempty</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">k</span>,   <span class="comment">(*&nbsp;get-empty&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">get</span> <span class="id" type="var">k</span> <span class="id" type="var">empty</span> = 0.<br/>
+&nbsp;<span class="id" type="keyword">Axiom</span> <span class="id" type="var">gss</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">k</span> <span class="id" type="var">t</span>,      <span class="comment">(*&nbsp;get-set-same&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">get</span> <span class="id" type="var">k</span> (<span class="id" type="var">incr</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>) = 1+(<span class="id" type="var">get</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>).<br/>
+&nbsp;<span class="id" type="keyword">Axiom</span> <span class="id" type="var">gso</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">j</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>,    <span class="comment">(*&nbsp;get-set-other&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">j</span> ≠ <span class="id" type="var">k</span> → <span class="id" type="var">get</span> <span class="id" type="var">j</span> (<span class="id" type="var">incr</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>) = <span class="id" type="var">get</span> <span class="id" type="var">j</span> <span class="id" type="var">t</span>.<br/>
+<span class="id" type="keyword">End</span> <span class="id" type="var">COUNT_TABLE</span>.<br/>
+</div>
+
+<div class="doc">
+This means:  in any <span class="inlinecode"><span class="id" type="keyword">Module</span></span> that satisfies this <span class="inlinecode"><span class="id" type="keyword">Module</span></span> <span class="inlinecode"><span class="id" type="keyword">Type</span></span>,
+   there's a type <span class="inlinecode"><span class="id" type="var">table</span></span> of count-tables,
+   and operators <span class="inlinecode"><span class="id" type="var">empty</span></span>, <span class="inlinecode"><span class="id" type="var">get</span></span>, <span class="inlinecode"><span class="id" type="tactic">set</span></span> that satisfy the axioms
+   <span class="inlinecode"><span class="id" type="var">gempty</span></span>, <span class="inlinecode"><span class="id" type="var">gss</span></span>, and <span class="inlinecode"><span class="id" type="var">gso</span></span>. 
+<div class="paragraph"> </div>
+
+<a name="lab120"></a><h3 class="section">A "reference" implementation of COUNT_TABLE</h3>
+
+<div class="paragraph"> </div>
+
+<a name="lab121"></a><h4 class="section">Exercise: 2 stars, standard (FunTable)</h4>
+  It's easy to make a slow implementation of <span class="inlinecode"><span class="id" type="var">COUNT_TABLE</span></span>, using functions. 
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Module</span> <span class="id" type="var">FunTable</span> &lt;: <span class="id" type="var">COUNT_TABLE</span>.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">table</span>: <span class="id" type="keyword">Type</span> := <span class="id" type="var">nat</span> → <span class="id" type="var">Z</span>.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">key</span> : <span class="id" type="keyword">Type</span> := <span class="id" type="var">nat</span>.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">empty</span>: <span class="id" type="var">table</span> := <span class="id" type="keyword">fun</span> <span class="id" type="var">k</span> ⇒ 0.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">get</span> (<span class="id" type="var">k</span>: <span class="id" type="var">key</span>) (<span class="id" type="var">t</span>: <span class="id" type="var">table</span>) : <span class="id" type="var">Z</span> := <span class="id" type="var">t</span> <span class="id" type="var">k</span>.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">incr</span> (<span class="id" type="var">k</span>: <span class="id" type="var">key</span>) (<span class="id" type="var">t</span>: <span class="id" type="var">table</span>) : <span class="id" type="var">table</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="keyword">fun</span> <span class="id" type="var">k'</span> ⇒ <span class="id" type="keyword">if</span> <span class="id" type="var">Nat.eqb</span> <span class="id" type="var">k'</span> <span class="id" type="var">k</span> <span class="id" type="keyword">then</span> 1 + <span class="id" type="var">t</span> <span class="id" type="var">k'</span> <span class="id" type="keyword">else</span> <span class="id" type="var">t</span> <span class="id" type="var">k'</span>.<br/>
+&nbsp;<span class="id" type="keyword">Lemma</span> <span class="id" type="var">gempty</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">k</span>,  <span class="id" type="var">get</span> <span class="id" type="var">k</span> <span class="id" type="var">empty</span> = 0.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+&nbsp;<span class="id" type="keyword">Lemma</span> <span class="id" type="var">gss</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">k</span> <span class="id" type="var">t</span>,  <span class="id" type="var">get</span> <span class="id" type="var">k</span> (<span class="id" type="var">incr</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>) = 1+(<span class="id" type="var">get</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>).<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+&nbsp;<span class="id" type="keyword">Lemma</span> <span class="id" type="var">gso</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">j</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>,  <span class="id" type="var">j</span> ≠ <span class="id" type="var">k</span> → <span class="id" type="var">get</span> <span class="id" type="var">j</span> (<span class="id" type="var">incr</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>) = <span class="id" type="var">get</span> <span class="id" type="var">j</span> <span class="id" type="var">t</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+<span class="id" type="keyword">End</span> <span class="id" type="var">FunTable</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="doc less-space">
+<div class="paragraph"> </div>
+
+<a name="lab122"></a><h3 class="section">Demonstration that hash tables implement COUNT_TABLE</h3>
+
+<div class="paragraph"> </div>
+
+<a name="lab123"></a><h4 class="section">Exercise: 3 stars, standard (IntHashTable)</h4>
+  Now we make a "fast" implementation using hash tables.  We
+  put "fast" in quotes because, unlike the imperative implementation,
+ the purely functional implementation takes linear time, not constant time,
+ to select the the i'th bucket.  That is, <span class="inlinecode"><span class="id" type="var">Znth</span></span> <span class="inlinecode"><span class="id" type="var">i</span></span> <span class="inlinecode"><span class="id" type="var">al</span></span> takes time proportional to <span class="inlinecode"><span class="id" type="var">i</span></span>.
+ But that is no problem, because we are not using <span class="inlinecode"><span class="id" type="var">hashtable_get</span></span> and
+ <span class="inlinecode"><span class="id" type="var">hashtable_incr</span></span> as our real implementation; they are serving as the 
+ <i>functional model</i> of the fast implementation in C.  
+</div>
+<div class="code code-tight">
+
+<span class="id" type="keyword">Module</span> <span class="id" type="var">IntHashTable</span> &lt;: <span class="id" type="var">COUNT_TABLE</span>.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">hashtable_invariant</span> (<span class="id" type="var">cts</span>: <span class="id" type="var">hashtable_contents</span>) : <span class="id" type="keyword">Prop</span> :=<br/>
+&nbsp;&nbsp;<span class="id" type="var">Zlength</span> <span class="id" type="var">cts</span> = <span class="id" type="var">N</span> ∧<br/>
+&nbsp;&nbsp;<span style='font-size:120%;'>&forall;</span><span class="id" type="var">i</span>, 0 ≤ <span class="id" type="var">i</span> &lt; <span class="id" type="var">N</span> →<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">list_norepet</span> (<span class="id" type="var">map</span> <span class="id" type="var">fst</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">cts</span>))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∧ <span class="id" type="var">Forall</span> (<span class="id" type="keyword">fun</span> <span class="id" type="var">s</span> ⇒ <span class="id" type="var">hashfun</span> <span class="id" type="var">s</span> <span class="id" type="var">mod</span> <span class="id" type="var">N</span> = <span class="id" type="var">i</span>) (<span class="id" type="var">map</span> <span class="id" type="var">fst</span> (<span class="id" type="var">Znth</span> <span class="id" type="var">i</span> <span class="id" type="var">cts</span>)).<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">table</span> := <span class="id" type="var">sig</span> <span class="id" type="var">hashtable_invariant</span>.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">key</span> := <span class="id" type="var">list</span> <span class="id" type="var">byte</span>.<br/><hr class='doublespaceincode'/>
+&nbsp;<span class="id" type="keyword">Lemma</span> <span class="id" type="var">empty_invariant</span>: <span class="id" type="var">hashtable_invariant</span> <span class="id" type="var">empty_table</span>.<br/>
+&nbsp;<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+<span class="id" type="keyword">Lemma</span> <span class="id" type="var">incr_invariant</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">k</span> <span class="id" type="var">cts</span>, <span class="id" type="var">hashtable_invariant</span> <span class="id" type="var">cts</span> → <span class="id" type="var">hashtable_invariant</span> (<span class="id" type="var">hashtable_incr</span> <span class="id" type="var">k</span> <span class="id" type="var">cts</span>).<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">empty</span> : <span class="id" type="var">table</span> := <span class="id" type="var">exist</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> <span class="id" type="var">empty_invariant</span>.<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">get</span> : <span class="id" type="var">key</span> → <span class="id" type="var">table</span> → <span class="id" type="var">Z</span> := <span class="id" type="keyword">fun</span> <span class="id" type="var">k</span> <span class="id" type="var">tbl</span> ⇒ <span class="id" type="var">hashtable_get</span> <span class="id" type="var">k</span> (<span class="id" type="var">proj1_sig</span> <span class="id" type="var">tbl</span>).<br/>
+&nbsp;<span class="id" type="keyword">Definition</span> <span class="id" type="var">incr</span> : <span class="id" type="var">key</span> → <span class="id" type="var">table</span> → <span class="id" type="var">table</span> := <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="keyword">fun</span> <span class="id" type="var">k</span> <span class="id" type="var">tbl</span> ⇒ <span class="id" type="var">exist</span> <span class="id" type="var">_</span> <span class="id" type="var">_</span> (<span class="id" type="var">incr_invariant</span> <span class="id" type="var">k</span> <span class="id" type="var">_</span> (<span class="id" type="var">proj2_sig</span> <span class="id" type="var">tbl</span>)).<br/><hr class='doublespaceincode'/>
+&nbsp;<span class="id" type="keyword">Theorem</span> <span class="id" type="var">gempty</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">k</span>, <span class="id" type="var">get</span> <span class="id" type="var">k</span> <span class="id" type="var">empty</span> = 0.<br/>
+&nbsp;<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+&nbsp;<span class="id" type="keyword">Theorem</span> <span class="id" type="var">gss</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">k</span> <span class="id" type="var">t</span>,  <span class="id" type="var">get</span> <span class="id" type="var">k</span> (<span class="id" type="var">incr</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>) =  1 + (<span class="id" type="var">get</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>).<br/>
+&nbsp;<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/><hr class='doublespaceincode'/>
+&nbsp;<span class="id" type="keyword">Theorem</span> <span class="id" type="var">gso</span>: <span style='font-size:120%;'>&forall;</span><span class="id" type="var">j</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>,    <span class="comment">(*&nbsp;get-set-other&nbsp;*)</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" type="var">j</span> ≠ <span class="id" type="var">k</span> → <span class="id" type="var">get</span> <span class="id" type="var">j</span> (<span class="id" type="var">incr</span> <span class="id" type="var">k</span> <span class="id" type="var">t</span>) = <span class="id" type="var">get</span> <span class="id" type="var">j</span> <span class="id" type="var">t</span>.<br/>
+<span class="id" type="keyword">Proof</span>.<br/>
+<span class="comment">(*&nbsp;FILL&nbsp;IN&nbsp;HERE&nbsp;*)</span> <span class="id" type="var">Admitted</span>.<br/>
+</div>
+
+<span class="proofbox">&#9744;</span> 
+<div class="code code-tight">
+
+<span class="id" type="keyword">End</span> <span class="id" type="var">IntHashTable</span>.<br/><hr class='doublespaceincode'/>
+<span class="comment">(*&nbsp;Wed&nbsp;Apr&nbsp;24&nbsp;08:45:37&nbsp;EDT&nbsp;2019&nbsp;*)</span><br/>
+</div>
+</div>
+
+
+
+</div>
+
+</body>
+</html>
